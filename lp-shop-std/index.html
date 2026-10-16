@@ -488,23 +488,98 @@ main>section.csoudan{padding:64px 0}
  box-shadow:0 2px 0 #8a7f70,0 3px 5px rgba(0,0,0,.45),inset 0 1px 0 #fff}
 .kseek:active::-webkit-slider-thumb{box-shadow:0 1px 0 #8a7f70,0 2px 3px rgba(0,0,0,.45),inset 0 1px 0 #fff}
 .kseek:focus-visible{outline:2px solid #c4522f;outline-offset:2px}
-/* VU メーター（藤沢さん 2026-10-16「カセットデッキ風？」）: 生成りの盤に黒い目盛り、+側は朱、針は音の大きさで振れる。
-   真ん中は架空の銘板（実在のメーカー名は使わない）。止まっているときは針が左に寝る */
-.vurow{flex:1 0 100%;display:flex;align-items:center;gap:8px;padding:6px;border-radius:2px;background:linear-gradient(180deg,#b9af9d,#a99f8c);box-shadow:inset 0 1px 3px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.5)}
-.vum{flex:1;min-width:0;display:block;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.45)}
-.vubg{fill:#efe2bd}.deck.on .vubg{fill:#f6e7bb}
-.vua{fill:none;stroke:#2b2522;stroke-width:1.2}.vur{fill:none;stroke:#c4522f;stroke-width:5}
-.vut{stroke:#2b2522;stroke-width:1.1}.vut.h{stroke:#c4522f}
-.vun{font:600 8.5px/1 ui-monospace,"SF Mono",Menlo,monospace;fill:#2b2522;text-anchor:middle}.vun.h{fill:#c4522f}
-.vul{font:700 15px/1 Georgia,"Times New Roman",serif;fill:#2b2522;text-anchor:middle;letter-spacing:.04em}
-.vuc{font:700 9px/1 ui-monospace,Menlo,monospace;fill:#6a5d53}
-.vun0{stroke:#1b1715;stroke-width:1.4;stroke-linecap:round}
-.vup{fill:#2b2522}
-.vuplate{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;margin:0;padding:0 2px;color:#2b2522;text-align:center;line-height:1.15}
-.vuplate b{font:700 12px/1 Georgia,"Times New Roman",serif;letter-spacing:.22em;margin-right:-.22em}
-.vuplate small{font:600 6.5px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#4a3f37}
-.vuplate i{font:700 7.5px/1 ui-monospace,Menlo,monospace;font-style:normal;letter-spacing:.12em;color:#c4522f;border:1px solid #c4522f;padding:2px 3px 1px}
-@media(max-width:380px){.vuplate small{display:none}}
+/* VU メーター（藤沢さん 2026-10-16「カセットデッキ風？」）。参考の画像の VU メーターをできるだけ忠実に写す（オーナー指示 2026-10-16）:
+   生成りのパネルに LEFT / MID・RIGHT / SIDE・SET の見出し、黄土の枠の中に生成りの盤が2つ、下に MS LINK・黒いつまみと 0.0 の窓・
+   銘板・VU PPM -18。銘板は架空の名前（実在のメーカー名は使わない）。止まっているときは針が左に寝る */
+.deck.mini{background:linear-gradient(180deg,#efe6cc,#e4d8b8)}
+.vupanel{flex:1 0 100%;container-type:inline-size;margin:2px 0 0;padding:0 0 2px;color:#3b342c}
+.vuhd{display:grid;grid-template-columns:1fr 1fr;position:relative;margin:0 0 4px;padding:0 1.2em;font:700 clamp(8px,2.6cqi,11px)/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.06em;text-align:center}
+.vuhd b{position:absolute;right:0;top:0;font-weight:700}
+.vumeters{display:grid;grid-template-columns:1fr 1fr;gap:clamp(6px,2.4cqi,14px)}
+.vufr{padding:clamp(5px,2cqi,10px);border-radius:clamp(6px,2.2cqi,12px);background:#d9c89c;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.08)}
+.vum{display:block;width:100%;height:auto;border-radius:clamp(3px,1.2cqi,7px);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.vubg{fill:#f6edd1}.deck.on .vubg{fill:#f8eecd}
+.vua{fill:none;stroke:#2e2924;stroke-width:1.1}.vur{fill:none;stroke:#cf5a2c;stroke-width:6.4}
+.vut{stroke:#2e2924;stroke-width:1.1}.vut.h{stroke:#cf5a2c}.vut.s{stroke-width:.8}
+.vun{font:500 9.5px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;fill:#2e2924;text-anchor:middle}.vun.h{fill:#cf5a2c}
+.vupc{font:500 6.6px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;fill:#2e2924;text-anchor:middle}
+.vul{font:800 22px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;fill:#2e2924;text-anchor:middle;letter-spacing:-.02em}
+.vun0{stroke:#1d1a17;stroke-width:1.3;stroke-linecap:round}
+.vud{fill:#d9c89c}.vup{fill:#2e2924}
+.vuft{display:grid;grid-template-columns:1fr auto 1.15fr auto 1fr;align-items:center;gap:clamp(4px,1.8cqi,10px);margin:clamp(6px,2.2cqi,12px) 0 0;
+ font:700 clamp(7.5px,2.4cqi,11px)/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.04em}
+.vums{display:flex;align-items:center;gap:.5em;white-space:nowrap}.vums span{margin-left:.35em}
+.rings{position:relative;width:1.7em;height:1.1em;flex:none}
+.rings:before,.rings:after{content:"";position:absolute;top:0;width:1.1em;height:1.1em;box-sizing:border-box;border:2px solid #cf5a2c;border-radius:50%}
+.rings:before{left:0}.rings:after{right:0;opacity:.8}
+.vukn{display:flex;flex-direction:column;align-items:center;gap:3px}
+.knob{position:relative;width:clamp(20px,6.4cqi,30px);height:clamp(20px,6.4cqi,30px);border-radius:50%;
+ background:radial-gradient(circle at 50% 42%,#4a4a48 0 52%,#2c2c2b 56% 100%);box-shadow:0 0 0 2px #3a3a38,0 2px 3px rgba(0,0,0,.35)}
+.knob:after{content:"";position:absolute;left:calc(50% - 1px);top:12%;width:2px;height:30%;border-radius:1px;background:#f2f0ea}
+.vukn output{min-width:3.6em;padding:.25em .4em .2em;border-radius:3px;background:#3d3c39;color:#f2f0ea;font:700 clamp(7px,2.2cqi,10px)/1 ui-monospace,"SF Mono",Menlo,monospace;text-align:center}
+.vubrand{display:flex;flex-direction:column;align-items:center;gap:3px;margin:0;line-height:1;text-align:center}
+.vubrand b{font:500 clamp(10px,3.6cqi,16px)/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.02em;color:#3b342c}
+.vubrand small{font:600 clamp(6px,1.8cqi,8px)/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.3em;margin-right:-.3em}
+.vumode{justify-self:end;display:flex;align-items:center;gap:.6em;padding:.3em 0;border:0;background:none;color:#3b342c;font:inherit;letter-spacing:inherit;cursor:pointer;white-space:nowrap}
+.vumode em{font-style:normal}.vumode .vm1,.vumode[aria-pressed="true"] .vm2{color:#cf5a2c}.vumode[aria-pressed="true"] .vm1{color:inherit}
+.vumode:focus-visible{outline:2px solid #cf5a2c;outline-offset:2px}
+/* 分離型（見本 A・2026-10-16）: 帯を、上の卓のメーターブリッジと、下のテープのリモコンの2台に分ける。どちらもそれまでの生成りの面。
+   2台のあいだは暗い卓の色が見える。メーターの枠の下にマスキングテープの手書きのチャンネル名 */
+.deck.mini.split{display:block;padding:0;background:none;box-shadow:none}
+.dunit{border-radius:2px;background:linear-gradient(180deg,#efe6cc,#e4d8b8);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 0 rgba(0,0,0,.16),0 6px 16px rgba(0,0,0,.4)}
+.dbr{position:relative;padding:10px 10px 8px}
+.dbr:before,.dbr:after{content:"";position:absolute;top:4px;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#a99f8c 70%);box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+.dbr:before{left:4px}.dbr:after{right:4px}
+.dbr .vuft{margin-top:clamp(12px,3.4cqi,18px)}
+.dbr{container-type:inline-size;color:#3b342c}
+.vufr{position:relative}
+.mtape{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%) rotate(-1.6deg);padding:2px 10px 1px;background:rgba(246,240,220,.95);color:#2b2522;
+ font:600 clamp(10px,3cqi,13px)/1.3 "Klee One",var(--font,serif);letter-spacing:.06em;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.22)}
+.mtape:before,.mtape:after{content:"";position:absolute;top:0;bottom:0;width:4px;background:inherit;clip-path:polygon(0 0,100% 10%,60% 30%,100% 50%,50% 70%,100% 90%,0 100%)}
+.mtape:before{left:-3px;transform:scaleX(-1)}.mtape:after{right:-3px}
+.mtape.r{transform:translateX(-50%) rotate(1.3deg)}
+.drm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 0;padding:8px 10px 6px}
+.dshut{flex:1 0 100%;margin:4px 2px -6px;font:700 8px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.22em;color:#6a5d53}
+/* 試し読みのタブ（見本 A・2026-10-16）: 書類の見出しのような生成りのタブ。選んだタブは中身の面とつながる。
+   面は3枚を同じ升に重ね（.off は見えないだけ）、いちばん高い1枚の高さになる。各面は「中身（.rpc 生成りの面）＋補足（.rpx）」。
+   ブロックは中央そろえ。狭い画面: タブが上・補足は下。広い画面（1100px〜）: タブを左に縦に並べ、補足は右（PC で高さを稼がない。オーナー指示 2026-10-16）。
+   誌面の面とタブだけ暗い（めくるボタンが暗い地用のため） */
+.rtabs{width:min(600px,100%);margin:1.4em auto 0}
+.rtb{display:flex;gap:4px;padding:0 0 0 10px}
+.rtab{position:relative;padding:10px 18px 9px;border:0;border-radius:6px 6px 0 0;background:#bfb39a;color:#3b342c;cursor:pointer;
+ font:600 13px/1.2 var(--font,serif);letter-spacing:.14em;text-align:left;box-shadow:inset 0 -3px 4px rgba(0,0,0,.12);transition:background .2s}
+.rtab small{display:block;margin-top:5px;font:700 8px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.2em;color:#6a5d53}
+.rtab:hover{background:#cdc2aa}
+.rtab[aria-selected="true"]{z-index:1;margin-bottom:-3px;padding-bottom:12px;background:#f8f3e6;color:#2b2522;box-shadow:none}
+.rtab[aria-selected="true"] small{color:#c4522f}
+#rt-book[aria-selected="true"]{background:#141211;color:#eee}
+.rtab:focus-visible{outline:2px solid #c4522f;outline-offset:2px}
+.rpns{display:grid}
+.rpn{grid-area:1/1;display:flex;flex-direction:column;min-width:0}
+.rpn.off{visibility:hidden}
+.rpc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;padding:20px;border-radius:0 3px 3px 3px;background:#f8f3e6;color:#2b2522;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.rpn.dark .rpc{background:#141211;color:var(--ink,#eee)}
+.rpc>*{max-width:100%}
+.rpx{padding:12px 4px 0}
+.reading .rpx .dnote,.reading .rpx .fine{width:auto;max-width:none;margin:0 0 .6em;text-align:left}
+.reading .rpc .vbox{margin:0;width:max-content;max-width:100%;box-shadow:0 2px 8px rgba(0,0,0,.14);overflow-x:auto;box-sizing:border-box}
+.reading .rpc .deck.mini{width:100%;max-width:none;margin:0;box-sizing:border-box}
+.rpc .dunit{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 0 rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.18)}
+.rpc .fbook{width:100%;margin:0}
+@media(max-width:520px){.rtb{gap:3px;padding:0 0 0 4px}.rtab{flex:1;padding:9px 6px 8px;font-size:11.5px;letter-spacing:.04em;text-align:center}.rtab small{font-size:7px;letter-spacing:.12em}
+ .rtab[aria-selected="true"]{padding-bottom:11px}.rpc{padding:12px}}
+@media(min-width:1100px){
+ /* 左のタブは、バインダーの見出しのように字を横にねかせ（反時計回りに90度）、下から上へ読む（オーナー指示 2026-10-16）。
+    sideways で字を右へ倒し、180度回して左へ倒す。回したあとの左の角が丸く、右（面の側）に影 */
+ .rtabs{--rw:min(980px,calc(100vw - 2 * var(--gut,40px)));width:var(--rw);margin:1.6em 0 0 calc((100% - var(--rw)) / 2);display:grid;grid-template-columns:54px minmax(0,1fr);align-items:start}
+ .rtb{flex-direction:column;align-items:flex-end;gap:6px;padding:18px 0 0}
+ .rtab{writing-mode:vertical-rl;text-orientation:sideways;transform:rotate(180deg);padding:20px 10px 20px 12px;border-radius:0 6px 6px 0;text-align:start;letter-spacing:.18em;box-shadow:inset 3px 0 4px rgba(0,0,0,.12)}
+ .rtab small{margin:0;margin-block-start:5px;letter-spacing:.24em}
+ .rtab[aria-selected="true"]{margin:0 -3px 0 0;padding:20px 10px 20px 15px}
+ .rpn{display:grid;grid-template-columns:600px minmax(0,1fr);column-gap:32px;align-items:stretch}
+ .rpc{border-radius:3px}
+ .rpx{align-self:center;padding:0;max-width:280px}
+}
 .dnote{max-width:420px;margin:0 auto 1.4em;font-size:11.5px;line-height:1.8;color:var(--mute);text-align:center}
 /* 章の左右の余白をそろえる（オーナー指示 2026-10-15。「この本は」の余白が基準）: 中身の幅は最大 960px、左右の余白は画面幅の 6%（20〜72px）。
    どの章も同じ線から始まる。登場人物の帯だけは画面いっぱいのまま。感想の欄は幅を狭めたまま左の線にそろえる */
@@ -819,7 +894,7 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 @media(prefers-reduced-motion:reduce){.nkon .nkear,.nkon .nkeye{animation:none}}
 </style>
 <meta name="robots" content="noindex,nofollow"/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&amp;text=0126%E2%80%A6%E3%80%81%E3%80%82%E3%80%85%E3%80%8C%E3%80%8D%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8B%E3%81%8C%E3%81%8D%E3%81%91%E3%81%92%E3%81%93%E3%81%95%E3%81%97%E3%81%98%E3%81%99%E3%81%9B%E3%81%9D%E3%81%9F%E3%81%A0%E3%81%A1%E3%81%A3%E3%81%A4%E3%81%A6%E3%81%A7%E3%81%A8%E3%81%A9%E3%81%AA%E3%81%AB%E3%81%AE%E3%81%AF%E3%81%B6%E3%81%B8%E3%81%B9%E3%81%BE%E3%81%BF%E3%82%80%E3%82%82%E3%82%83%E3%82%84%E3%82%88%E3%82%89%E3%82%8A%E3%82%8B%E3%82%8C%E3%82%8D%E3%82%92%E3%82%93%E3%82%A3%E3%82%A8%E3%82%AD%E3%82%AF%E3%82%B5%E3%82%B7%E3%82%BD%E3%83%83%E3%83%89%E3%83%94%E3%83%95%E3%83%97%E3%83%9D%E3%83%9F%E3%83%A7%E3%83%AA%E3%83%AC%E3%83%AD%E3%83%B3%E3%83%BC%E4%B8%80%E4%B8%89%E4%B8%8A%E4%B8%96%E4%BA%BA%E4%BB%8A%E4%BC%9A%E4%BD%95%E4%BD%9C%E5%83%8F%E5%85%89%E5%87%BA%E5%88%86%E5%88%A5%E5%8D%8A%E5%8D%97%E5%8D%98%E5%8E%9F%E5%8F%B0%E5%90%88%E5%90%8C%E5%90%8D%E5%90%91%E5%93%81%E5%96%AB%E5%96%B6%E5%9C%A8%E5%A0%B4%E5%A1%8A%E5%A4%95%E5%A4%9A%E5%AE%8F%E5%AE%9A%E5%AE%9F%E5%B0%8F%E5%B3%B6%E5%B4%8E%E5%B8%B8%E5%B9%B4%E5%BA%97%E5%BA%A6%E5%BF%83%E6%80%9D%E6%83%85%E6%84%9F%E6%85%8E%E6%89%80%E6%8A%98%E6%8A%BC%E6%8C%81%E6%8F%8F%E6%96%B9%E6%97%A5%E6%98%A0%E6%99%82%E6%99%AF%E6%9A%AE%E6%9B%B8%E6%9C%80%E6%9C%88%E6%9C%B4%E6%A2%B6%E6%A7%98%E6%AD%8C%E6%B0%97%E6%B2%88%E6%B2%A2%E6%B5%A6%E6%B5%AE%E6%B8%AF%E7%88%86%E7%89%A9%E7%94%BA%E7%95%8C%E7%95%AA%E7%99%BA%E7%99%BB%E7%9E%AC%E7%A4%BE%E7%A8%BF%E7%AB%AF%E7%AD%86%E7%B0%A1%E7%B1%8D%E7%B4%A0%E7%B6%B4%E7%BD%AE%E8%80%85%E8%87%AA%E8%88%9E%E8%8C%B6%E8%8D%92%E8%91%97%E8%97%A4%E8%A1%8C%E8%A6%8B%E8%A7%A6%E8%A8%AD%E8%A8%B3%E8%AA%9E%E8%AA%AC%E8%B1%A1%E8%BA%AB%E8%BE%BC%E9%96%93%E9%A2%A8%EF%BC%8F%EF%BC%9A%EF%BC%9F&amp;display=swap"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&amp;text=0126LR%E2%80%A6%E3%80%81%E3%80%82%E3%80%85%E3%80%8C%E3%80%8D%E3%81%82%E3%81%84%E3%81%86%E3%81%88%E3%81%8B%E3%81%8C%E3%81%8D%E3%81%91%E3%81%92%E3%81%93%E3%81%95%E3%81%97%E3%81%98%E3%81%99%E3%81%9B%E3%81%9D%E3%81%9F%E3%81%A0%E3%81%A1%E3%81%A3%E3%81%A4%E3%81%A6%E3%81%A7%E3%81%A8%E3%81%A9%E3%81%AA%E3%81%AB%E3%81%AE%E3%81%AF%E3%81%B6%E3%81%B8%E3%81%B9%E3%81%BE%E3%81%BF%E3%82%80%E3%82%82%E3%82%83%E3%82%84%E3%82%88%E3%82%89%E3%82%8A%E3%82%8B%E3%82%8C%E3%82%8D%E3%82%92%E3%82%93%E3%82%A3%E3%82%A8%E3%82%AD%E3%82%AF%E3%82%B5%E3%82%B7%E3%82%BD%E3%83%83%E3%83%89%E3%83%94%E3%83%95%E3%83%97%E3%83%9D%E3%83%9F%E3%83%A7%E3%83%AA%E3%83%AC%E3%83%AD%E3%83%B3%E3%83%BC%E4%B8%80%E4%B8%89%E4%B8%8A%E4%B8%96%E4%BA%BA%E4%BB%8A%E4%BC%9A%E4%BD%95%E4%BD%9C%E5%83%8F%E5%85%89%E5%87%BA%E5%88%86%E5%88%A5%E5%8D%8A%E5%8D%97%E5%8D%98%E5%8E%9F%E5%8F%B0%E5%90%88%E5%90%8C%E5%90%8D%E5%90%91%E5%93%81%E5%96%AB%E5%96%B6%E5%9C%A8%E5%A0%B4%E5%A1%8A%E5%A4%95%E5%A4%9A%E5%AE%8F%E5%AE%9A%E5%AE%9F%E5%B0%8F%E5%B3%B6%E5%B4%8E%E5%B8%B8%E5%B9%B4%E5%BA%97%E5%BA%A6%E5%BF%83%E6%80%9D%E6%83%85%E6%84%9F%E6%85%8E%E6%89%80%E6%8A%98%E6%8A%BC%E6%8C%81%E6%8F%8F%E6%96%B9%E6%97%A5%E6%98%A0%E6%99%82%E6%99%AF%E6%9A%AE%E6%9B%B8%E6%9C%80%E6%9C%88%E6%9C%97%E6%9C%B4%E6%A2%B6%E6%A7%98%E6%AD%8C%E6%B0%97%E6%B2%88%E6%B2%A2%E6%B5%A6%E6%B5%AE%E6%B8%AF%E7%88%86%E7%89%A9%E7%94%BA%E7%95%8C%E7%95%AA%E7%99%BA%E7%99%BB%E7%9E%AC%E7%A4%BE%E7%A8%BF%E7%AB%AF%E7%AD%86%E7%B0%A1%E7%B1%8D%E7%B4%A0%E7%B6%B4%E7%BD%AE%E8%80%85%E8%87%AA%E8%88%9E%E8%8C%B6%E8%8D%92%E8%91%97%E8%97%A4%E8%A1%8C%E8%A6%8B%E8%A7%A6%E8%A8%AD%E8%A8%B3%E8%AA%9E%E8%AA%AC%E8%AA%AD%E8%B1%A1%E8%BA%AB%E8%BE%BC%E9%96%93%E9%A2%A8%EF%BC%8F%EF%BC%9A%EF%BC%9F&amp;display=swap"/>
 <style>/*vhfix*/:root{--svh:1svh;--vh:1vh}</style><script>(function(){var r=document.documentElement,w=0;function m(){if(innerWidth===w)return;w=innerWidth;var h=innerHeight/100+"px";r.style.setProperty("--svh",h);r.style.setProperty("--vh",h)}m();addEventListener("resize",m);addEventListener("orientationchange",function(){w=0;setTimeout(m,250)})})();</script>
 </head>
 <body class="tk-g" data-deadline="" data-site="https://vaseata.github.io/yuhi-no-uta-web/lp-shop-std" data-share="「夕日の歌」梶町よん — 斜陽の港町に、世界で一番きれいな夕日が沈む。">
@@ -884,8 +959,12 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 </div></section>
 <section class="dark reading" id="reading" data-label="試し読み"><div class="wrap">
 <p class="eyebrow">試し読み</p><h2>試し読み、ひとくち。</h2>
-<div class="rdgrid"><div class="rdl"><div class="vbox"><div class="vtext gkw"><div class="gk"><div class="gc"><i>「</i><i>う</i><i>ー</i><i>ん</i><i>…</i><i>…</i><i>、</i><i>ロ</i><i>ッ</i><i>ク</i><i>は</i><i>感</i><i>情</i><i>を</i><i>押</i></div><div class="gc"><i>さ</i><i>え</i><i>込</i><i>む</i><i>も</i><i>の</i><i>な</i><i>ん</i><i>だ</i><i>よ</i><i>、</i><i>簡</i><i>単</i><i>に</i><i>爆</i></div><div class="gc"><i>発</i><i>さ</i><i>せ</i><i>た</i><i>り</i><i>し</i><i>な</i><i>い</i><i>の</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>…</i><i>…</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>気</i><i>持</i><i>ち</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>、</i></div><div class="gc"><i>そ</i><i>の</i><i>上</i><i>で</i><i>ま</i><i>た</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>こ</i><i>そ</i><i>な</i></div><div class="gc"><i>ん</i><i>だ</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>感</i><i>情</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>む</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>押</i><i>さ</i><i>え</i><i>に</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>い</i><i>る</i><i>け</i><i>れ</i></div><div class="gc"><i>ど</i><i>、</i><i>時</i><i>折</i><i>り</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>ち</i><i>ゃ</i><i>う</i><i>の</i><i>よ</i><i class=hang>、</i></div><div class="gc"><i>人</i><i>間</i><i>だ</i><i>か</i><i>ら</i><i>」</i></div><div class="gc"><i>「</i><i>何</i><i>が</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>る</i><i>ん</i><i>で</i><i>す</i><i>か</i><i>？</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>感</i><i>情</i><i>の</i><i>塊</i><i>だ</i><i>よ</i><i>、</i><i>そ</i><i>れ</i><i>が</i><i>ポ</i></div><div class="gc"><i>ロ</i><i>リ</i><i>と</i><i>見</i><i>え</i><i>た</i><i>瞬</i><i>間</i><i>に</i><i>、</i><i>あ</i><i>あ</i><i>ロ</i><i>ッ</i><i>ク</i></div><div class="gc"><i>だ</i><i>な</i><i>こ</i><i>の</i><i>人</i><i>は</i><i>、</i><i>と</i><i>な</i><i>る</i><i>訳</i><i>よ</i><i>」</i></div></div></div></div>
-<div class="deck mini" id="deck" role="region" aria-label="購入特典の朗読から、ひとくち">
+<div class="rtabs" id="rtabs"><div class="rtb" role="tablist" aria-label="試し読み"><button type="button" role="tab" class="rtab" id="rt-gen" aria-controls="rp-gen" aria-selected="true">原稿用紙で読む<small>MANUSCRIPT</small></button><button type="button" role="tab" class="rtab" id="rt-aud" aria-controls="rp-aud" aria-selected="false" tabindex="-1">朗読を聴く<small>AUDIO</small></button><button type="button" role="tab" class="rtab" id="rt-book" aria-controls="rp-book" aria-selected="false" tabindex="-1">誌面をめくる<small>PAGES</small></button></div><div class="rpns"><div class="rpn" role="tabpanel" id="rp-gen" aria-labelledby="rt-gen"><div class="rpc"><div class="vbox"><div class="vtext gkw"><div class="gk"><div class="gc"><i>「</i><i>う</i><i>ー</i><i>ん</i><i>…</i><i>…</i><i>、</i><i>ロ</i><i>ッ</i><i>ク</i><i>は</i><i>感</i><i>情</i><i>を</i><i>押</i></div><div class="gc"><i>さ</i><i>え</i><i>込</i><i>む</i><i>も</i><i>の</i><i>な</i><i>ん</i><i>だ</i><i>よ</i><i>、</i><i>簡</i><i>単</i><i>に</i><i>爆</i></div><div class="gc"><i>発</i><i>さ</i><i>せ</i><i>た</i><i>り</i><i>し</i><i>な</i><i>い</i><i>の</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>…</i><i>…</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>気</i><i>持</i><i>ち</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>、</i></div><div class="gc"><i>そ</i><i>の</i><i>上</i><i>で</i><i>ま</i><i>た</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>こ</i><i>そ</i><i>な</i></div><div class="gc"><i>ん</i><i>だ</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>感</i><i>情</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>む</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>押</i><i>さ</i><i>え</i><i>に</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>い</i><i>る</i><i>け</i><i>れ</i></div><div class="gc"><i>ど</i><i>、</i><i>時</i><i>折</i><i>り</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>ち</i><i>ゃ</i><i>う</i><i>の</i><i>よ</i><i class=hang>、</i></div><div class="gc"><i>人</i><i>間</i><i>だ</i><i>か</i><i>ら</i><i>」</i></div><div class="gc"><i>「</i><i>何</i><i>が</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>る</i><i>ん</i><i>で</i><i>す</i><i>か</i><i>？</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>感</i><i>情</i><i>の</i><i>塊</i><i>だ</i><i>よ</i><i>、</i><i>そ</i><i>れ</i><i>が</i><i>ポ</i></div><div class="gc"><i>ロ</i><i>リ</i><i>と</i><i>見</i><i>え</i><i>た</i><i>瞬</i><i>間</i><i>に</i><i>、</i><i>あ</i><i>あ</i><i>ロ</i><i>ッ</i><i>ク</i></div><div class="gc"><i>だ</i><i>な</i><i>こ</i><i>の</i><i>人</i><i>は</i><i>、</i><i>と</i><i>な</i><i>る</i><i>訳</i><i>よ</i><i>」</i></div></div></div></div></div><div class="rpx"><p class="fine">本文の一節を、原稿用紙に。右の行から左へお読みください。</p></div></div><div class="rpn off" role="tabpanel" id="rp-aud" aria-labelledby="rt-aud"><div class="rpc"><div class="deck mini split" id="deck" role="region" aria-label="購入特典の朗読から、ひとくち">
+<div class="dunit dbr">
+<div class="vumeters" aria-hidden="true"><div class="vufr"><svg class="vum" viewBox="0 0 200 112" aria-hidden="true"><rect width="200" height="112" class="vubg"/><path d="M128.8 39.3A70.8 70.8 0 0 1 154.2 58.5" class="vur"/><path d="M43.3 56.4A74 74 0 0 1 156.7 56.4" class="vua"/><line x1="43.3" y1="56.4" x2="38.3" y2="52.3" class="vut"/><text x="32.6" y="50.4" class="vun">-20</text><line x1="63.0" y1="39.9" x2="59.8" y2="34.3" class="vut"/><text x="56.0" y="30.8" class="vun">-10</text><line x1="74.7" y1="34.5" x2="72.5" y2="28.4" class="vut"/><text x="69.9" y="24.3" class="vun">-7</text><line x1="87.2" y1="31.1" x2="86.0" y2="24.7" class="vut"/><text x="84.7" y="20.3" class="vun">-5</text><line x1="102.6" y1="30.0" x2="102.8" y2="23.5" class="vut"/><text x="103.1" y="19.1" class="vun">-3</text><line x1="111.6" y1="30.9" x2="112.6" y2="24.5" class="vut"/><line x1="121.0" y1="33.0" x2="122.9" y2="26.8" class="vut"/><text x="125.0" y="22.6" class="vun">-1</text><line x1="130.1" y1="36.4" x2="132.7" y2="30.5" class="vut"/><text x="135.8" y="26.6" class="vun">0</text><line x1="138.7" y1="40.9" x2="142.1" y2="35.4" class="vut h"/><text x="146.0" y="32.0" class="vun h">+1</text><line x1="147.6" y1="47.3" x2="151.7" y2="42.3" class="vut h"/><text x="156.6" y="39.6" class="vun h">+2</text><line x1="156.7" y1="56.4" x2="161.7" y2="52.3" class="vut h"/><text x="167.4" y="50.4" class="vun h">+3</text><line x1="52.4" y1="47.3" x2="50.2" y2="44.6" class="vut s"/><line x1="68.7" y1="36.9" x2="67.2" y2="33.8" class="vut s"/><line x1="80.8" y1="32.5" x2="79.9" y2="29.1" class="vut s"/><line x1="94.8" y1="30.2" x2="94.6" y2="26.7" class="vut s"/><line x1="40.1" y1="60.5" x2="43.8" y2="63.1" class="vut s"/><text x="49.0" y="69.4" class="vupc">0</text><line x1="54.5" y1="45.7" x2="57.3" y2="49.2" class="vut s"/><text x="61.2" y="56.7" class="vupc">20</text><line x1="70.9" y1="36.0" x2="72.6" y2="40.1" class="vut s"/><text x="75.2" y="48.5" class="vupc">40</text><line x1="91.5" y1="30.5" x2="92.0" y2="35.0" class="vut s"/><text x="92.7" y="43.8" class="vupc">60</text><line x1="112.2" y1="31.0" x2="111.4" y2="35.4" class="vut s"/><text x="110.4" y="44.3" class="vupc">80</text><line x1="130.1" y1="36.4" x2="128.3" y2="40.5" class="vut s"/><text x="125.6" y="48.8" class="vupc">100</text><text x="100" y="78" class="vul">VU</text><line x1="100" y1="104" x2="100" y2="25" class="vun0" transform="rotate(-57.0 100 104)" data-rest="-57.0" data-min="-50.0" data-max="55.0"/><path d="M78 112A22 19 0 0 1 122 112Z" class="vud"/><circle cx="100" cy="103" r="4" class="vup"/></svg><span class="mtape">朗読 L</span></div><div class="vufr"><svg class="vum" viewBox="0 0 200 112" aria-hidden="true"><rect width="200" height="112" class="vubg"/><path d="M128.8 39.3A70.8 70.8 0 0 1 154.2 58.5" class="vur"/><path d="M43.3 56.4A74 74 0 0 1 156.7 56.4" class="vua"/><line x1="43.3" y1="56.4" x2="38.3" y2="52.3" class="vut"/><text x="32.6" y="50.4" class="vun">-20</text><line x1="63.0" y1="39.9" x2="59.8" y2="34.3" class="vut"/><text x="56.0" y="30.8" class="vun">-10</text><line x1="74.7" y1="34.5" x2="72.5" y2="28.4" class="vut"/><text x="69.9" y="24.3" class="vun">-7</text><line x1="87.2" y1="31.1" x2="86.0" y2="24.7" class="vut"/><text x="84.7" y="20.3" class="vun">-5</text><line x1="102.6" y1="30.0" x2="102.8" y2="23.5" class="vut"/><text x="103.1" y="19.1" class="vun">-3</text><line x1="111.6" y1="30.9" x2="112.6" y2="24.5" class="vut"/><line x1="121.0" y1="33.0" x2="122.9" y2="26.8" class="vut"/><text x="125.0" y="22.6" class="vun">-1</text><line x1="130.1" y1="36.4" x2="132.7" y2="30.5" class="vut"/><text x="135.8" y="26.6" class="vun">0</text><line x1="138.7" y1="40.9" x2="142.1" y2="35.4" class="vut h"/><text x="146.0" y="32.0" class="vun h">+1</text><line x1="147.6" y1="47.3" x2="151.7" y2="42.3" class="vut h"/><text x="156.6" y="39.6" class="vun h">+2</text><line x1="156.7" y1="56.4" x2="161.7" y2="52.3" class="vut h"/><text x="167.4" y="50.4" class="vun h">+3</text><line x1="52.4" y1="47.3" x2="50.2" y2="44.6" class="vut s"/><line x1="68.7" y1="36.9" x2="67.2" y2="33.8" class="vut s"/><line x1="80.8" y1="32.5" x2="79.9" y2="29.1" class="vut s"/><line x1="94.8" y1="30.2" x2="94.6" y2="26.7" class="vut s"/><line x1="40.1" y1="60.5" x2="43.8" y2="63.1" class="vut s"/><text x="49.0" y="69.4" class="vupc">0</text><line x1="54.5" y1="45.7" x2="57.3" y2="49.2" class="vut s"/><text x="61.2" y="56.7" class="vupc">20</text><line x1="70.9" y1="36.0" x2="72.6" y2="40.1" class="vut s"/><text x="75.2" y="48.5" class="vupc">40</text><line x1="91.5" y1="30.5" x2="92.0" y2="35.0" class="vut s"/><text x="92.7" y="43.8" class="vupc">60</text><line x1="112.2" y1="31.0" x2="111.4" y2="35.4" class="vut s"/><text x="110.4" y="44.3" class="vupc">80</text><line x1="130.1" y1="36.4" x2="128.3" y2="40.5" class="vut s"/><text x="125.6" y="48.8" class="vupc">100</text><text x="100" y="78" class="vul">VU</text><line x1="100" y1="104" x2="100" y2="25" class="vun0" transform="rotate(-57.0 100 104)" data-rest="-57.0" data-min="-50.0" data-max="55.0"/><path d="M78 112A22 19 0 0 1 122 112Z" class="vud"/><circle cx="100" cy="103" r="4" class="vup"/></svg><span class="mtape r">朗読 R</span></div></div>
+<div class="vuft"><span class="vums" aria-hidden="true"><i class="rings"></i>MS<span>LINK</span></span><span class="vukn" aria-hidden="true"><i class="knob"></i><output>0.0</output></span><p class="vubrand" aria-hidden="true"><b>Misaki</b><small>VU-1101</small></p><span class="vukn" aria-hidden="true"><i class="knob"></i><output>0.0</output></span><button type="button" class="vumode" id="kvum" aria-label="メーターの振れ方（VU／PPM）を切り替える" aria-pressed="false"><em class="vm1">VU</em><em class="vm2">PPM</em><span>-18</span></button></div>
+</div>
+<div class="dunit drm">
 <span class="spk" aria-hidden="true"></span>
 <p class="dtxt"><b>購入特典の朗読を、ひとくち</b><small></small></p>
 <div class="keys" role="group" aria-label="朗読の操作">
@@ -893,12 +972,11 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
  <button type="button" class="key" id="kstop" aria-label="止める"><span>■</span></button>
 </div>
 <p class="dmeter"><i class="lamp" aria-hidden="true"></i><span class="cnt" id="kcnt">0:00</span><small id="kdur"></small></p>
-<div class="vurow" aria-hidden="true"><svg class="vum" viewBox="0 0 160 90" aria-hidden="true"><rect width="160" height="90" class="vubg"/><path d="M33.9 43.3A70 70 0 0 1 103.9 30.2" class="vua"/><path d="M104.8 27.9A72.5 72.5 0 0 1 133.9 47.5" class="vur"/><line x1="33.9" y1="43.3" x2="29.9" y2="38.8" class="vut"/><text x="25.3" y="35.6" class="vun">-20</text><line x1="48.8" y1="33.4" x2="46.1" y2="28.0" class="vut"/><text x="43.0" y="23.7" class="vun">-10</text><line x1="58.8" y1="29.3" x2="57.0" y2="23.6" class="vut"/><line x1="68.1" y1="27.0" x2="67.1" y2="21.1" class="vut"/><text x="65.9" y="16.2" class="vun">-5</text><line x1="80.1" y1="26.0" x2="80.2" y2="20.0" class="vut"/><text x="80.2" y="15.0" class="vun">-3</text><line x1="95.2" y1="27.7" x2="96.5" y2="21.8" class="vut"/><line x1="103.9" y1="30.2" x2="105.9" y2="24.6" class="vut"/><text x="108.3" y="20.0" class="vun">0</text><line x1="113.1" y1="34.3" x2="116.0" y2="29.1" class="vut h"/><line x1="122.7" y1="40.5" x2="126.3" y2="35.8" class="vut h"/><line x1="132.0" y1="49.2" x2="136.5" y2="45.1" class="vut h"/><text x="141.7" y="42.5" class="vun h">+3</text><text x="80" y="66" class="vul">VU</text><text x="12" y="84" class="vuc">L</text><line x1="80" y1="96" x2="80" y2="24" class="vun0" transform="rotate(-45.2 80 96)" data-rest="-45.2" data-min="-41.2" data-max="52.0"/><circle cx="80" cy="96" r="13" class="vup"/></svg><p class="vuplate"><b>MISAKI</b><small>STEREO<br/>CASSETTE DECK</small><i>VU-1101</i></p><svg class="vum" viewBox="0 0 160 90" aria-hidden="true"><rect width="160" height="90" class="vubg"/><path d="M33.9 43.3A70 70 0 0 1 103.9 30.2" class="vua"/><path d="M104.8 27.9A72.5 72.5 0 0 1 133.9 47.5" class="vur"/><line x1="33.9" y1="43.3" x2="29.9" y2="38.8" class="vut"/><text x="25.3" y="35.6" class="vun">-20</text><line x1="48.8" y1="33.4" x2="46.1" y2="28.0" class="vut"/><text x="43.0" y="23.7" class="vun">-10</text><line x1="58.8" y1="29.3" x2="57.0" y2="23.6" class="vut"/><line x1="68.1" y1="27.0" x2="67.1" y2="21.1" class="vut"/><text x="65.9" y="16.2" class="vun">-5</text><line x1="80.1" y1="26.0" x2="80.2" y2="20.0" class="vut"/><text x="80.2" y="15.0" class="vun">-3</text><line x1="95.2" y1="27.7" x2="96.5" y2="21.8" class="vut"/><line x1="103.9" y1="30.2" x2="105.9" y2="24.6" class="vut"/><text x="108.3" y="20.0" class="vun">0</text><line x1="113.1" y1="34.3" x2="116.0" y2="29.1" class="vut h"/><line x1="122.7" y1="40.5" x2="126.3" y2="35.8" class="vut h"/><line x1="132.0" y1="49.2" x2="136.5" y2="45.1" class="vut h"/><text x="141.7" y="42.5" class="vun h">+3</text><text x="80" y="66" class="vul">VU</text><text x="12" y="84" class="vuc">R</text><line x1="80" y1="96" x2="80" y2="24" class="vun0" transform="rotate(-45.2 80 96)" data-rest="-45.2" data-min="-41.2" data-max="52.0"/><circle cx="80" cy="96" r="13" class="vup"/></svg></div>
+<p class="dshut" aria-hidden="true">SHUTTLE ／ LOCATE</p>
 <input type="range" class="kseek" id="kseek" min="0" max="1000" step="1" value="0" aria-label="再生する位置（戻す・進める）"/>
+</div>
 <audio id="kaud" preload="none" src="assets/sample_68c881b0.m4a"></audio>
-</div><p class="dnote">ご購入のかたは、朗読版（全10話・4時間11分30秒）をスマホやPCでお聴きいただけます。</p>
-</div><div class="rdr"><div class="fbook" id="fbook" data-pages='[{"m": "assets/sp_mid_1.jpg", "f": "assets/sp_full_1.jpg"}, {"m": "assets/sp_mid_2.jpg", "f": "assets/sp_full_2.jpg"}, {"m": "assets/sp_mid_3.jpg", "f": "assets/sp_full_3.jpg"}, {"m": "assets/sp_mid_4.jpg", "f": "assets/sp_full_4.jpg"}, {"m": "assets/sp_mid_5.jpg", "f": "assets/sp_full_5.jpg"}]' aria-label="誌面の見本（実際の本・5見開き）"><div class="fbst" id="fbst"><div class="fbh fbl" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbh fbr" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbleaf" id="fbleaf" hidden><div class="fbf"></div><div class="fbb"></div></div><span class="fbspine" aria-hidden="true"></span><span class="fbcurl" aria-hidden="true"></span><button type="button" class="fbzoom" id="fbzoom">拡大して読む</button></div><div class="fbnav"><button type="button" class="fbgo" id="fbnext" aria-label="次の見開きへめくる">← めくる</button><span class="fbcnt" id="fbcnt">1 ／ 5</span><button type="button" class="fbgo" id="fbprev" aria-label="前の見開きへもどる" disabled>もどる →</button></div></div>
-<p class="fine">実際の本の誌面です。左のページを押すとめくれます。「拡大して読む」で大きく開けます。</p></div></div>
+</div></div><div class="rpx"><p class="dnote">ご購入のかたは、朗読版（全10話・4時間11分30秒）をスマホやPCでお聴きいただけます。</p></div></div><div class="rpn dark off" role="tabpanel" id="rp-book" aria-labelledby="rt-book"><div class="rpc"><div class="fbook" id="fbook" data-pages='[{"m": "assets/sp_mid_1.jpg", "f": "assets/sp_full_1.jpg"}, {"m": "assets/sp_mid_2.jpg", "f": "assets/sp_full_2.jpg"}, {"m": "assets/sp_mid_3.jpg", "f": "assets/sp_full_3.jpg"}, {"m": "assets/sp_mid_4.jpg", "f": "assets/sp_full_4.jpg"}, {"m": "assets/sp_mid_5.jpg", "f": "assets/sp_full_5.jpg"}]' aria-label="誌面の見本（実際の本・5見開き）"><div class="fbst" id="fbst"><div class="fbh fbl" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbh fbr" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbleaf" id="fbleaf" hidden><div class="fbf"></div><div class="fbb"></div></div><span class="fbspine" aria-hidden="true"></span><span class="fbcurl" aria-hidden="true"></span><button type="button" class="fbzoom" id="fbzoom">拡大して読む</button></div><div class="fbnav"><button type="button" class="fbgo" id="fbnext" aria-label="次の見開きへめくる">← めくる</button><span class="fbcnt" id="fbcnt">1 ／ 5</span><button type="button" class="fbgo" id="fbprev" aria-label="前の見開きへもどる" disabled>もどる →</button></div></div></div><div class="rpx"><p class="fine">実際の本の誌面です。左のページを押すとめくれます。「拡大して読む」で大きく開けます。</p></div></div></div></div>
 <dialog class="lb" id="lb" aria-label="誌面を読む"><figure><img id="lbimg" alt=""/><figcaption id="lbcap"></figcaption></figure><button type="button" class="lbx" id="lbx" aria-label="閉じる">閉じる ×</button><button type="button" class="lbp" id="lbp" aria-label="次の見開き（縦書きの本は左へ進む）">←</button><button type="button" class="lbn" id="lbn" aria-label="前の見開き">→</button></dialog></div></section>
 <section class="dark place pbg" style="--bg:url(assets/ph_img033.jpg)" data-label="舞台"><div class="wrap">
 <p class="eyebrow">舞台 <span class="kari">仮</span></p><h2>舞台は、三崎。</h2>
@@ -1085,6 +1163,13 @@ if(c)c.addEventListener('click',function(){var done=function(){c.textContent='�
 (function(){if(!('IntersectionObserver' in window))return;   /* 予告編・冒頭映像・朗読は、ほかの章へスクロールして見えなくなったら止める（全画面で見ているときは止めない。オーナー指示 2026-10-15） */
 [['tv','#tplayer'],['ov','#ovplayer'],['kaud','#deck']].forEach(function(x){var m=document.getElementById(x[0]),box=document.querySelector(x[1]);if(!m||!box)return;
  new IntersectionObserver(function(es){es.forEach(function(e){if(e.intersectionRatio<.2&&!m.paused&&!(document.fullscreenElement||document.webkitFullscreenElement))m.pause();});},{threshold:[0,.2]}).observe(box);});})();
+(function(){var w=document.getElementById('rtabs');if(!w)return;   /* 試し読みのタブ: 押す・左右の矢印で切り替える（朗読は止めない） */
+var T=[].slice.call(w.querySelectorAll('.rtab'));
+function sel(t,f){T.forEach(function(x){var on=x===t;x.setAttribute('aria-selected',String(on));x.tabIndex=on?0:-1;
+ document.getElementById(x.getAttribute('aria-controls')).classList.toggle('off',!on)});if(f)t.focus()}
+T.forEach(function(t,i){t.addEventListener('click',function(){sel(t)});
+ t.addEventListener('keydown',function(e){var j=e.key==='ArrowRight'?i+1:e.key==='ArrowLeft'?i-1:e.key==='Home'?0:e.key==='End'?T.length-1:null;
+  if(j===null)return;e.preventDefault();sel(T[(j+T.length)%T.length],true)})});})();
 (function(){var fb=document.getElementById('fbook');if(!fb)return;   /* 誌面の本をめくる（縦書きの本: 左のページを右へめくって進む） */
 var P=JSON.parse(fb.getAttribute('data-pages')),n=P.length,cur=0,busy=false,st=document.getElementById('fbst'),L=st.querySelector('.fbl'),R=st.querySelector('.fbr'),
  lf=document.getElementById('fbleaf'),F=lf.querySelector('.fbf'),B=lf.querySelector('.fbb'),cnt=document.getElementById('fbcnt'),nx=document.getElementById('fbnext'),pv=document.getElementById('fbprev');
@@ -1138,15 +1223,17 @@ if(rew)rew.addEventListener('click',function(){a.pause();a.currentTime=0;draw()}
 a.addEventListener('play',function(){state(true)});a.addEventListener('pause',function(){state(false)});
 a.addEventListener('ended',function(){state(false);a.currentTime=0;draw()});
 a.addEventListener('timeupdate',draw);a.addEventListener('loadedmetadata',draw);
-var nd=[].slice.call(d.querySelectorAll('.vun0')),ac=null,an=[],buf=null,lv=[0,0],raf=0;   /* VU メーター: 左右の音の大きさで針を振る（VU らしく、ゆっくり上がってゆっくり戻る） */
+var nd=[].slice.call(d.querySelectorAll('.vun0')),ac=null,an=[],buf=null,lv=[0,0],raf=0,ppm=false,vm=document.getElementById('kvum');
+if(vm)vm.addEventListener('click',function(){ppm=!ppm;vm.setAttribute('aria-pressed',String(ppm))});   /* VU／PPM: PPM は速く上がって、ゆっくり戻る */   /* VU メーター: 左右の音の大きさで針を振る（VU らしく、ゆっくり上がってゆっくり戻る） */
+var VP=[[-20,0],[-10,.2],[-7,.3],[-5,.4],[-3,.52],[-2,.59],[-1,.665],[0,.74],[1,.815],[2,.9],[3,1]];   /* lp_shop_std.VU_POS と同じ表 */
 function ndl(i,v){var n=nd[i];if(!n)return;var lo=+n.getAttribute('data-min'),hi=+n.getAttribute('data-max'),rs=+n.getAttribute('data-rest');
- var g=Math.min(1,v/Math.pow(10,3/20)),A=v<0.005?rs:lo+(hi-4-lo)*g;n.setAttribute('transform','rotate('+A.toFixed(2)+' 80 96)')}
+ var A;if(v<0.1)A=rs+(lo-rs)*v/0.1;else{var db=Math.min(3,20*Math.log(v)/Math.LN10),q=1;for(var m=1;m<VP.length;m++)if(db<=VP[m][0]){var a0=VP[m-1],a1=VP[m];q=a0[1]+(a1[1]-a0[1])*(db-a0[0])/(a1[0]-a0[0]);break}A=-50+100*q}n.setAttribute('transform','rotate('+A.toFixed(2)+' 100 104)')}
 function audio(){if(ac||!nd.length)return;try{var C=window.AudioContext||window.webkitAudioContext;ac=new C();var s=ac.createMediaElementSource(a),sp=ac.createChannelSplitter(2);
  s.connect(ac.destination);s.connect(sp);for(var i=0;i<2;i++){var x=ac.createAnalyser();x.fftSize=1024;sp.connect(x,i);an.push(x)}buf=new Float32Array(1024);}catch(e){ac=false}}
 function tick(){var on=!a.paused;for(var i=0;i<2;i++){var t=0;
- if(on&&an[i]){an[i].getFloatTimeDomainData(buf);var q=0;for(var j=0;j<buf.length;j++)q+=buf[j]*buf[j];t=Math.sqrt(q/buf.length)*4.2}
+ if(on&&an[i]){an[i].getFloatTimeDomainData(buf);var q=0;for(var j=0;j<buf.length;j++)q+=buf[j]*buf[j];t=Math.sqrt(q/buf.length)*6}
  else if(on&&ac===false){t=0.45+Math.random()*0.35}
- lv[i]+=(t-lv[i])*(t>lv[i]?0.16:0.07);ndl(i,lv[i])}
+ lv[i]+=(t-lv[i])*(t>lv[i]?(ppm?0.6:0.16):(ppm?0.035:0.07));ndl(i,lv[i])}
  if(on||lv[0]>0.004||lv[1]>0.004)raf=requestAnimationFrame(tick);else{raf=0;ndl(0,0);ndl(1,0)}}
 p.addEventListener('click',function(){audio();if(ac&&ac.state==='suspended')ac.resume()},true);
 a.addEventListener('play',function(){if(!raf)raf=requestAnimationFrame(tick)});})();
