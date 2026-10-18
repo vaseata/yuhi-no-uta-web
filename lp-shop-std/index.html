@@ -917,7 +917,7 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 </div>
 </header>
 <main>
-<section class="dark cabout" id="about" data-label="この本は" style="--bg:url(assets/ph_img025.jpg);--mpos:88% 45%"><div class="wrap">
+<section class="dark cabout" id="about" data-label="この本は" style="--bg:url(assets/ph_img025.jpg);--mpos:88% 45%" data-bgs='[{&quot;u&quot;: &quot;url(assets/ph_img025.jpg)&quot;, &quot;m&quot;: &quot;88% 45%&quot;}, {&quot;u&quot;: &quot;url(assets/ph_train_window_src.jpg)&quot;, &quot;m&quot;: &quot;28% 50%&quot;}]'><div class="wrap">
 <p class="eyebrow">この本は</p>
 <h2 class="big">駄目なところが、愛おしい。<br/>あなたにとっての宝物とは…</h2>
 <div class="abody"><p>誰もいない真夜中の海面は月光に照らされて美しかった。</p><p>シャッターの降りた商店街の黄色いテントの喫茶店。<br/>今、僕は自分が生きてゆくことだけで精一杯だけど、暮らしている町も元気を取り戻して欲しいと思っていた。</p></div>
@@ -954,7 +954,7 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 <button type="button" class="fsbtn" id="ovfs">⛶ 全画面で見る</button>
 <a class="onext" href="#reading">つづきは、試し読みで<i aria-hidden="true">↓</i></a>
 </div></section>
-<section class="dark reading obg rbg" style="--bg:url(assets/reading_bg.jpg)" id="reading" data-label="試し読み"><div class="wrap">
+<section class="dark reading obg rbg" style="--bg:url(assets/rbg_img018.jpg)" id="reading" data-label="試し読み"><div class="wrap">
 <p class="eyebrow">試し読み</p><h2>試し読み、ひとくち。</h2>
 <div class="rduo"><div class="rcol raud"><p class="rlab">朗読を聴く<small>AUDIO</small></p><div class="rpc"><div class="deck mini split" id="deck" role="region" aria-label="購入特典の朗読から、ひとくち">
 <div class="dunit dbr">
@@ -1168,6 +1168,10 @@ if(c)c.addEventListener('click',function(){var done=function(){c.textContent='�
 (function(){if(!('IntersectionObserver' in window))return;   /* 予告編・冒頭映像・朗読は、ほかの章へスクロールして見えなくなったら止める（全画面で見ているときは止めない。オーナー指示 2026-10-15） */
 [['tv','#tplayer'],['ov','#ovplayer'],['kaud','#deck']].forEach(function(x){var m=document.getElementById(x[0]),box=document.querySelector(x[1]);if(!m||!box)return;
  new IntersectionObserver(function(es){es.forEach(function(e){if(e.intersectionRatio<.2&&!m.paused&&!(document.fullscreenElement||document.webkitFullscreenElement))m.pause();});},{threshold:[0,.2]}).observe(box);});})();
+(function(){var s=document.getElementById('about'),d=s&&s.getAttribute('data-bgs');if(!d)return;   /* 「この本は」の背景: 開くたびに交互（初回はランダム。覚えられないときは毎回ランダム） */
+var B=JSON.parse(d),n=B.length,k=null,i;try{k=localStorage.getItem('yuhi_about_bg')}catch(e){}
+i=k===null||isNaN(+k)?Math.floor(Math.random()*n):(+k+1)%n;try{localStorage.setItem('yuhi_about_bg',String(i))}catch(e){}
+s.style.setProperty('--bg',B[i].u);s.style.setProperty('--mpos',B[i].m)})();
 (function(){var fb=document.getElementById('fbook');if(!fb)return;   /* 誌面の本をめくる（縦書きの本: 左のページを右へめくって進む） */
 var P=JSON.parse(fb.getAttribute('data-pages')),n=P.length,cur=0,busy=false,st=document.getElementById('fbst'),L=st.querySelector('.fbl'),R=st.querySelector('.fbr'),
  lf=document.getElementById('fbleaf'),F=lf.querySelector('.fbf'),B=lf.querySelector('.fbb'),cnt=document.getElementById('fbcnt'),nx=document.getElementById('fbnext'),pv=document.getElementById('fbprev');
