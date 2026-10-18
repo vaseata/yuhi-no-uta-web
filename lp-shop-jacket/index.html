@@ -539,46 +539,43 @@ main>section.csoudan{padding:64px 0}
 .mtape.r{transform:translateX(-50%) rotate(1.3deg)}
 .drm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 0;padding:8px 10px 6px}
 .dshut{flex:1 0 100%;margin:4px 2px -6px;font:700 8px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.22em;color:#6a5d53}
-/* 試し読みのタブ（見本 A・2026-10-16）: 書類の見出しのような生成りのタブ。選んだタブは中身の面とつながる。
-   面は3枚を同じ升に重ね（.off は見えないだけ）、いちばん高い1枚の高さになる。各面は「中身（.rpc 生成りの面）＋補足（.rpx）」。
-   ブロックは中央そろえ。狭い画面: タブが上・補足は下。広い画面（1100px〜）: タブを左に縦に並べ、補足は右（PC で高さを稼がない。オーナー指示 2026-10-16）。
-   誌面の面とタブだけ暗い（めくるボタンが暗い地用のため） */
-.rtabs{width:min(600px,100%);margin:1.4em auto 0}
-.rtb{display:flex;gap:4px;padding:0 0 0 10px}
-.rtab{position:relative;padding:10px 18px 9px;border:0;border-radius:6px 6px 0 0;background:#bfb39a;color:#3b342c;cursor:pointer;
- font:600 13px/1.2 var(--font,serif);letter-spacing:.14em;text-align:left;box-shadow:inset 0 -3px 4px rgba(0,0,0,.12);transition:background .2s}
-.rtab small{display:block;margin-top:5px;font:700 8px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.2em;color:#6a5d53}
-.rtab:hover{background:#cdc2aa}
-.rtab[aria-selected="true"]{z-index:1;margin-bottom:-3px;padding-bottom:12px;background:#f8f3e6;color:#2b2522;box-shadow:none}
-.rtab[aria-selected="true"] small{color:#c4522f}
-#rt-book[aria-selected="true"]{background:#141211;color:#eee}
-.rtab:focus-visible{outline:2px solid #c4522f;outline-offset:2px}
-.rpns{display:grid}
-.rpn{grid-area:1/1;display:flex;flex-direction:column;min-width:0}
-.rpn.off{visibility:hidden}
-.rpc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;padding:20px;border-radius:0 3px 3px 3px;background:#f8f3e6;color:#2b2522;box-shadow:0 6px 16px rgba(0,0,0,.4)}
-.rpn.dark .rpc{background:#141211;color:var(--ink,#eee)}
+/* 試し読み: 朗読と誌面を2つ並べる（タブはやめた。藤沢さん 2026-10-17・オーナー決定）。面は生成り（朗読）と暗い地（誌面）、補足は面の下。
+   広い画面（900px〜）: 左に朗読・右に誌面、上をそろえる。狭い画面: 朗読→誌面の縦並び */
+.rduo{display:flex;flex-direction:column;gap:2em;margin:1.4em 0 0}
+.rcol{min-width:0;width:min(560px,100%);margin:0 auto}
+.rlab{margin:0 0 .7em;font:600 14px/1.2 var(--font,serif);letter-spacing:.16em;color:var(--fg,#eee);text-align:left}
+.rlab small{margin-left:.9em;font:700 9px/1 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;letter-spacing:.22em;color:#e0805f}
+.rpc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;padding:18px;background:#f8f3e6;color:#2b2522;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.rpc.dark{background:#141211;color:var(--ink,#eee)}
 .rpc>*{max-width:100%}
-.rpx{padding:12px 4px 0}
+.rpx{padding:12px 2px 0}
 .reading .rpx .dnote,.reading .rpx .fine{width:auto;max-width:none;margin:0 0 .6em;text-align:left}
-.reading .rpc .vbox{margin:0;width:max-content;max-width:100%;box-shadow:0 2px 8px rgba(0,0,0,.14);overflow-x:auto;box-sizing:border-box}
 .reading .rpc .deck.mini{width:100%;max-width:none;margin:0;box-sizing:border-box}
 .rpc .dunit{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 0 rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.18)}
 .rpc .fbook{width:100%;margin:0}
-@media(max-width:520px){.rtb{gap:3px;padding:0 0 0 4px}.rtab{flex:1;padding:9px 6px 8px;font-size:11.5px;letter-spacing:.04em;text-align:center}.rtab small{font-size:7px;letter-spacing:.12em}
- .rtab[aria-selected="true"]{padding-bottom:11px}.rpc{padding:12px}}
-@media(min-width:1100px){
- /* 左のタブは、バインダーの見出しのように字を横にねかせ（反時計回りに90度）、下から上へ読む（オーナー指示 2026-10-16）。
-    sideways で字を右へ倒し、180度回して左へ倒す。回したあとの左の角が丸く、右（面の側）に影 */
- .rtabs{--rw:min(980px,calc(100vw - 2 * var(--gut,40px)));width:var(--rw);margin:1.6em 0 0 calc((100% - var(--rw)) / 2);display:grid;grid-template-columns:54px minmax(0,1fr);align-items:start}
- .rtb{flex-direction:column;align-items:flex-end;gap:6px;padding:18px 0 0}
- .rtab{writing-mode:vertical-rl;text-orientation:sideways;transform:rotate(180deg);padding:20px 10px 20px 12px;border-radius:0 6px 6px 0;text-align:start;letter-spacing:.18em;box-shadow:inset 3px 0 4px rgba(0,0,0,.12)}
- .rtab small{margin:0;margin-block-start:5px;letter-spacing:.24em}
- .rtab[aria-selected="true"]{margin:0 -3px 0 0;padding:20px 10px 20px 15px}
- .rpn{display:grid;grid-template-columns:600px minmax(0,1fr);column-gap:32px;align-items:stretch}
- .rpc{border-radius:3px}
- .rpx{align-self:center;padding:0;max-width:280px}
+@media(max-width:520px){.rpc{padding:12px}}
+.raud .rpc{padding:12px}
+@media(min-width:900px){
+ .rduo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);column-gap:clamp(24px,3vw,40px);align-items:start}
+ .rcol{width:auto;margin:0}
 }
+/* 取り扱い店舗（藤沢さん 2026-10-17）: 購入ボタンの下の案内は、送る・そうだんと同じ控えめな細い枠。章は店ごとに罫で区切った一覧と、募集の文 */
+.stbn{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:.2em .8em;width:fit-content;max-width:100%;margin:1.4em auto 0;padding:9px 16px;
+ border:1px solid rgba(243,154,120,.6);color:var(--fg,#eee);font-size:13px;letter-spacing:.06em;text-decoration:none;box-sizing:border-box}
+.stbn b{font-weight:600;color:#f39a78;white-space:nowrap}.stbn i{display:inline-block;margin-left:.4em;font-style:normal;transition:transform .2s}
+.stbn:hover i{transform:translateX(4px)}
+.slist{list-style:none;display:grid;gap:0;max-width:720px;margin:1.6em 0 0;padding:0;border-top:1px solid var(--line)}
+.slist li{padding:14px 2px;border-bottom:1px solid var(--line)}
+.slist h3{margin:0 0 .3em;font-size:16px;letter-spacing:.08em}
+.slist p{margin:0;font-size:13px;line-height:1.8;color:var(--mute)}
+.sad a{margin-left:.8em;font-size:12px;color:#f39a78;white-space:nowrap}
+.srec{max-width:720px;margin:2.4em 0 0;padding:1.4em 1.4em 1.2em;border:1px solid var(--line)}
+.srec h3{margin:0 0 .6em;font-size:15px;letter-spacing:.1em}
+.srec p{margin:0;font-size:13.5px;line-height:1.95}
+.smail{margin-top:.6em!important}.smail a{font-size:15px;letter-spacing:.04em;color:#f39a78}
+@media(min-width:900px){.slist{grid-template-columns:1fr 1fr;column-gap:40px}}
+/* 章の背景: 車窓から海を見る人の写真（藤沢さん 2026-10-17）を、冒頭映像の映画館（.obg）と同じく暗いモノクロで。窓の海と光が少し残る明るさに */
+.rbg:before{background-position:60% 40%;filter:grayscale(1) brightness(.46) contrast(1.08) blur(1.5px)}
 .dnote{max-width:420px;margin:0 auto 1.4em;font-size:11.5px;line-height:1.8;color:var(--mute);text-align:center}
 /* 章の左右の余白をそろえる（オーナー指示 2026-10-15。「この本は」の余白が基準）: 中身の幅は最大 960px、左右の余白は画面幅の 6%（20〜72px）。
    どの章も同じ線から始まる。登場人物の帯だけは画面いっぱいのまま。感想の欄は幅を狭めたまま左の線にそろえる */
@@ -1005,9 +1002,9 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 <button type="button" class="fsbtn" id="ovfs">⛶ 全画面で見る</button>
 <a class="onext" href="#reading">つづきは、試し読みで<i aria-hidden="true">↓</i></a>
 </div></section>
-<section class="dark reading" id="reading" data-label="試し読み"><div class="wrap">
+<section class="dark reading obg rbg" style="--bg:url(assets/reading_bg.jpg)" id="reading" data-label="試し読み"><div class="wrap">
 <p class="eyebrow">試し読み</p><h2>試し読み、ひとくち。</h2>
-<div class="rtabs" id="rtabs"><div class="rtb" role="tablist" aria-label="試し読み"><button type="button" role="tab" class="rtab" id="rt-gen" aria-controls="rp-gen" aria-selected="true">原稿用紙で読む<small>MANUSCRIPT</small></button><button type="button" role="tab" class="rtab" id="rt-aud" aria-controls="rp-aud" aria-selected="false" tabindex="-1">朗読を聴く<small>AUDIO</small></button><button type="button" role="tab" class="rtab" id="rt-book" aria-controls="rp-book" aria-selected="false" tabindex="-1">誌面をめくる<small>PAGES</small></button></div><div class="rpns"><div class="rpn" role="tabpanel" id="rp-gen" aria-labelledby="rt-gen"><div class="rpc"><div class="vbox"><div class="vtext gkw"><div class="gk"><div class="gc"><i>「</i><i>う</i><i>ー</i><i>ん</i><i>…</i><i>…</i><i>、</i><i>ロ</i><i>ッ</i><i>ク</i><i>は</i><i>感</i><i>情</i><i>を</i><i>押</i></div><div class="gc"><i>さ</i><i>え</i><i>込</i><i>む</i><i>も</i><i>の</i><i>な</i><i>ん</i><i>だ</i><i>よ</i><i>、</i><i>簡</i><i>単</i><i>に</i><i>爆</i></div><div class="gc"><i>発</i><i>さ</i><i>せ</i><i>た</i><i>り</i><i>し</i><i>な</i><i>い</i><i>の</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>…</i><i>…</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>気</i><i>持</i><i>ち</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>、</i></div><div class="gc"><i>そ</i><i>の</i><i>上</i><i>で</i><i>ま</i><i>た</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>こ</i><i>そ</i><i>な</i></div><div class="gc"><i>ん</i><i>だ</i><i>よ</i><i>」</i></div><div class="gc"><i>「</i><i>感</i><i>情</i><i>を</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>む</i><i>…</i><i>…</i><i>」</i></div><div class="gc"><i>「</i><i>押</i><i>さ</i><i>え</i><i>に</i><i>押</i><i>さ</i><i>え</i><i>込</i><i>ん</i><i>で</i><i>い</i><i>る</i><i>け</i><i>れ</i></div><div class="gc"><i>ど</i><i>、</i><i>時</i><i>折</i><i>り</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>ち</i><i>ゃ</i><i>う</i><i>の</i><i>よ</i><i class=hang>、</i></div><div class="gc"><i>人</i><i>間</i><i>だ</i><i>か</i><i>ら</i><i>」</i></div><div class="gc"><i>「</i><i>何</i><i>が</i><i>ポ</i><i>ロ</i><i>リ</i><i>と</i><i>出</i><i>る</i><i>ん</i><i>で</i><i>す</i><i>か</i><i>？</i><i>」</i></div><div class="gc"><i>「</i><i>荒</i><i>ぶ</i><i>る</i><i>感</i><i>情</i><i>の</i><i>塊</i><i>だ</i><i>よ</i><i>、</i><i>そ</i><i>れ</i><i>が</i><i>ポ</i></div><div class="gc"><i>ロ</i><i>リ</i><i>と</i><i>見</i><i>え</i><i>た</i><i>瞬</i><i>間</i><i>に</i><i>、</i><i>あ</i><i>あ</i><i>ロ</i><i>ッ</i><i>ク</i></div><div class="gc"><i>だ</i><i>な</i><i>こ</i><i>の</i><i>人</i><i>は</i><i>、</i><i>と</i><i>な</i><i>る</i><i>訳</i><i>よ</i><i>」</i></div></div></div></div></div><div class="rpx"><p class="fine">本文の一節を、原稿用紙に。右の行から左へお読みください。</p></div></div><div class="rpn off" role="tabpanel" id="rp-aud" aria-labelledby="rt-aud"><div class="rpc"><div class="deck mini split" id="deck" role="region" aria-label="購入特典の朗読から、ひとくち">
+<div class="rduo"><div class="rcol raud"><p class="rlab">朗読を聴く<small>AUDIO</small></p><div class="rpc"><div class="deck mini split" id="deck" role="region" aria-label="購入特典の朗読から、ひとくち">
 <div class="dunit dbr">
 <div class="vumeters" aria-hidden="true"><div class="vufr"><svg class="vum" viewBox="0 0 200 112" aria-hidden="true"><rect width="200" height="112" class="vubg"/><path d="M128.8 39.3A70.8 70.8 0 0 1 154.2 58.5" class="vur"/><path d="M43.3 56.4A74 74 0 0 1 156.7 56.4" class="vua"/><line x1="43.3" y1="56.4" x2="38.3" y2="52.3" class="vut"/><text x="32.6" y="50.4" class="vun">-20</text><line x1="63.0" y1="39.9" x2="59.8" y2="34.3" class="vut"/><text x="56.0" y="30.8" class="vun">-10</text><line x1="74.7" y1="34.5" x2="72.5" y2="28.4" class="vut"/><text x="69.9" y="24.3" class="vun">-7</text><line x1="87.2" y1="31.1" x2="86.0" y2="24.7" class="vut"/><text x="84.7" y="20.3" class="vun">-5</text><line x1="102.6" y1="30.0" x2="102.8" y2="23.5" class="vut"/><text x="103.1" y="19.1" class="vun">-3</text><line x1="111.6" y1="30.9" x2="112.6" y2="24.5" class="vut"/><line x1="121.0" y1="33.0" x2="122.9" y2="26.8" class="vut"/><text x="125.0" y="22.6" class="vun">-1</text><line x1="130.1" y1="36.4" x2="132.7" y2="30.5" class="vut"/><text x="135.8" y="26.6" class="vun">0</text><line x1="138.7" y1="40.9" x2="142.1" y2="35.4" class="vut h"/><text x="146.0" y="32.0" class="vun h">+1</text><line x1="147.6" y1="47.3" x2="151.7" y2="42.3" class="vut h"/><text x="156.6" y="39.6" class="vun h">+2</text><line x1="156.7" y1="56.4" x2="161.7" y2="52.3" class="vut h"/><text x="167.4" y="50.4" class="vun h">+3</text><line x1="52.4" y1="47.3" x2="50.2" y2="44.6" class="vut s"/><line x1="68.7" y1="36.9" x2="67.2" y2="33.8" class="vut s"/><line x1="80.8" y1="32.5" x2="79.9" y2="29.1" class="vut s"/><line x1="94.8" y1="30.2" x2="94.6" y2="26.7" class="vut s"/><line x1="40.1" y1="60.5" x2="43.8" y2="63.1" class="vut s"/><text x="49.0" y="69.4" class="vupc">0</text><line x1="54.5" y1="45.7" x2="57.3" y2="49.2" class="vut s"/><text x="61.2" y="56.7" class="vupc">20</text><line x1="70.9" y1="36.0" x2="72.6" y2="40.1" class="vut s"/><text x="75.2" y="48.5" class="vupc">40</text><line x1="91.5" y1="30.5" x2="92.0" y2="35.0" class="vut s"/><text x="92.7" y="43.8" class="vupc">60</text><line x1="112.2" y1="31.0" x2="111.4" y2="35.4" class="vut s"/><text x="110.4" y="44.3" class="vupc">80</text><line x1="130.1" y1="36.4" x2="128.3" y2="40.5" class="vut s"/><text x="125.6" y="48.8" class="vupc">100</text><text x="100" y="78" class="vul">VU</text><line x1="100" y1="104" x2="100" y2="25" class="vun0" transform="rotate(-57.0 100 104)" data-rest="-57.0" data-min="-50.0" data-max="55.0"/><path d="M78 112A22 19 0 0 1 122 112Z" class="vud"/><circle cx="100" cy="103" r="4" class="vup"/></svg><span class="mtape">朗読 L</span></div><div class="vufr"><svg class="vum" viewBox="0 0 200 112" aria-hidden="true"><rect width="200" height="112" class="vubg"/><path d="M128.8 39.3A70.8 70.8 0 0 1 154.2 58.5" class="vur"/><path d="M43.3 56.4A74 74 0 0 1 156.7 56.4" class="vua"/><line x1="43.3" y1="56.4" x2="38.3" y2="52.3" class="vut"/><text x="32.6" y="50.4" class="vun">-20</text><line x1="63.0" y1="39.9" x2="59.8" y2="34.3" class="vut"/><text x="56.0" y="30.8" class="vun">-10</text><line x1="74.7" y1="34.5" x2="72.5" y2="28.4" class="vut"/><text x="69.9" y="24.3" class="vun">-7</text><line x1="87.2" y1="31.1" x2="86.0" y2="24.7" class="vut"/><text x="84.7" y="20.3" class="vun">-5</text><line x1="102.6" y1="30.0" x2="102.8" y2="23.5" class="vut"/><text x="103.1" y="19.1" class="vun">-3</text><line x1="111.6" y1="30.9" x2="112.6" y2="24.5" class="vut"/><line x1="121.0" y1="33.0" x2="122.9" y2="26.8" class="vut"/><text x="125.0" y="22.6" class="vun">-1</text><line x1="130.1" y1="36.4" x2="132.7" y2="30.5" class="vut"/><text x="135.8" y="26.6" class="vun">0</text><line x1="138.7" y1="40.9" x2="142.1" y2="35.4" class="vut h"/><text x="146.0" y="32.0" class="vun h">+1</text><line x1="147.6" y1="47.3" x2="151.7" y2="42.3" class="vut h"/><text x="156.6" y="39.6" class="vun h">+2</text><line x1="156.7" y1="56.4" x2="161.7" y2="52.3" class="vut h"/><text x="167.4" y="50.4" class="vun h">+3</text><line x1="52.4" y1="47.3" x2="50.2" y2="44.6" class="vut s"/><line x1="68.7" y1="36.9" x2="67.2" y2="33.8" class="vut s"/><line x1="80.8" y1="32.5" x2="79.9" y2="29.1" class="vut s"/><line x1="94.8" y1="30.2" x2="94.6" y2="26.7" class="vut s"/><line x1="40.1" y1="60.5" x2="43.8" y2="63.1" class="vut s"/><text x="49.0" y="69.4" class="vupc">0</text><line x1="54.5" y1="45.7" x2="57.3" y2="49.2" class="vut s"/><text x="61.2" y="56.7" class="vupc">20</text><line x1="70.9" y1="36.0" x2="72.6" y2="40.1" class="vut s"/><text x="75.2" y="48.5" class="vupc">40</text><line x1="91.5" y1="30.5" x2="92.0" y2="35.0" class="vut s"/><text x="92.7" y="43.8" class="vupc">60</text><line x1="112.2" y1="31.0" x2="111.4" y2="35.4" class="vut s"/><text x="110.4" y="44.3" class="vupc">80</text><line x1="130.1" y1="36.4" x2="128.3" y2="40.5" class="vut s"/><text x="125.6" y="48.8" class="vupc">100</text><text x="100" y="78" class="vul">VU</text><line x1="100" y1="104" x2="100" y2="25" class="vun0" transform="rotate(-57.0 100 104)" data-rest="-57.0" data-min="-50.0" data-max="55.0"/><path d="M78 112A22 19 0 0 1 122 112Z" class="vud"/><circle cx="100" cy="103" r="4" class="vup"/></svg><span class="mtape r">朗読 R</span></div></div>
 <div class="vuft"><span class="vums" aria-hidden="true"><i class="rings"></i>MS<span>LINK</span></span><span class="vukn" aria-hidden="true"><i class="knob"></i><output>0.0</output></span><p class="vubrand" aria-hidden="true"><b>Misaki</b><small>VU-1101</small></p><span class="vukn" aria-hidden="true"><i class="knob"></i><output>0.0</output></span><button type="button" class="vumode" id="kvum" aria-label="メーターの振れ方（VU／PPM）を切り替える" aria-pressed="false"><em class="vm1">VU</em><em class="vm2">PPM</em><span>-18</span></button></div>
@@ -1024,7 +1021,7 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 <input type="range" class="kseek" id="kseek" min="0" max="1000" step="1" value="0" aria-label="再生する位置（戻す・進める）"/>
 </div>
 <audio id="kaud" preload="none" src="assets/sample_68c881b0.m4a"></audio>
-</div></div><div class="rpx"><p class="dnote">ご購入のかたは、朗読版（全10話・4時間11分30秒）をスマホやPCでお聴きいただけます。</p></div></div><div class="rpn dark off" role="tabpanel" id="rp-book" aria-labelledby="rt-book"><div class="rpc"><div class="fbook" id="fbook" data-pages='[{"m": "assets/sp_mid_1.jpg", "f": "assets/sp_full_1.jpg"}, {"m": "assets/sp_mid_2.jpg", "f": "assets/sp_full_2.jpg"}, {"m": "assets/sp_mid_3.jpg", "f": "assets/sp_full_3.jpg"}, {"m": "assets/sp_mid_4.jpg", "f": "assets/sp_full_4.jpg"}, {"m": "assets/sp_mid_5.jpg", "f": "assets/sp_full_5.jpg"}]' aria-label="誌面の見本（実際の本・5見開き）"><div class="fbst" id="fbst"><div class="fbh fbl" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbh fbr" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbleaf" id="fbleaf" hidden><div class="fbf"></div><div class="fbb"></div></div><span class="fbspine" aria-hidden="true"></span><span class="fbcurl" aria-hidden="true"></span><button type="button" class="fbzoom" id="fbzoom">拡大して読む</button></div><div class="fbnav"><button type="button" class="fbgo" id="fbnext" aria-label="次の見開きへめくる">← めくる</button><span class="fbcnt" id="fbcnt">1 ／ 5</span><button type="button" class="fbgo" id="fbprev" aria-label="前の見開きへもどる" disabled>もどる →</button></div></div></div><div class="rpx"><p class="fine">実際の本の誌面です。左のページを押すとめくれます。「拡大して読む」で大きく開けます。</p></div></div></div></div>
+</div></div><div class="rpx"><p class="dnote">ご購入のかたは、朗読版（全10話・4時間11分30秒）をスマホやPCでお聴きいただけます。</p></div></div><div class="rcol rbook"><p class="rlab">誌面をめくる<small>PAGES</small></p><div class="rpc dark"><div class="fbook" id="fbook" data-pages='[{"m": "assets/sp_mid_1.jpg", "f": "assets/sp_full_1.jpg"}, {"m": "assets/sp_mid_2.jpg", "f": "assets/sp_full_2.jpg"}, {"m": "assets/sp_mid_3.jpg", "f": "assets/sp_full_3.jpg"}, {"m": "assets/sp_mid_4.jpg", "f": "assets/sp_full_4.jpg"}, {"m": "assets/sp_mid_5.jpg", "f": "assets/sp_full_5.jpg"}]' aria-label="誌面の見本（実際の本・5見開き）"><div class="fbst" id="fbst"><div class="fbh fbl" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbh fbr" style="background-image:url(assets/sp_mid_1.jpg)"></div><div class="fbleaf" id="fbleaf" hidden><div class="fbf"></div><div class="fbb"></div></div><span class="fbspine" aria-hidden="true"></span><span class="fbcurl" aria-hidden="true"></span><button type="button" class="fbzoom" id="fbzoom">拡大して読む</button></div><div class="fbnav"><button type="button" class="fbgo" id="fbnext" aria-label="次の見開きへめくる">← めくる</button><span class="fbcnt" id="fbcnt">1 ／ 5</span><button type="button" class="fbgo" id="fbprev" aria-label="前の見開きへもどる" disabled>もどる →</button></div></div></div><div class="rpx"><p class="fine">実際の本の誌面です。左のページを押すとめくれます。「拡大して読む」で大きく開けます。</p></div></div></div>
 <dialog class="lb" id="lb" aria-label="誌面を読む"><figure><img id="lbimg" alt=""/><figcaption id="lbcap"></figcaption></figure><button type="button" class="lbx" id="lbx" aria-label="閉じる">閉じる ×</button><button type="button" class="lbp" id="lbp" aria-label="次の見開き（縦書きの本は左へ進む）">←</button><button type="button" class="lbn" id="lbn" aria-label="前の見開き">→</button></dialog></div></section>
 <section class="dark place pbg" style="--bg:url(assets/ph_img033.jpg)" data-label="舞台"><div class="wrap">
 <p class="eyebrow">舞台 <span class="kari">仮</span></p><h2>舞台は、三崎。</h2>
@@ -1061,7 +1058,7 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 <p class="eyebrow">発行人より</p>
 <h2>藤沢宏光よりみなさまへ</h2>
 <div class="mbody"><p>この度、書籍「夕日の歌／梶町よん」を発行することになりました。</p><p>三浦半島最南端の港町、三崎港を舞台としたこの小説は自分自身が営む喫茶店「ミサキプレッソ」での多様な方々との出会いや、三崎に暮らす心やさしき人々との触れ合いを書き綴った物語です。</p><p>実在する方々のエピソードも度々登場しますが、映像作品の原作のような心に浮かぶ心象風景を描いたすべてフィクションの物語です。</p><p>梶町よんという筆名をあえて設定をしたのは、こころを日常とは別の場所に置き原稿に向き合いたいと感じたからだと思います。</p><p>今日も世界で一番きれいな夕日が沈む三崎港には、素朴で慎ましい暮らしがあります。</p><p>いつまでもこのきれいな夕日を見上げていたいと思います。</p></div>
-<p class="mdate">2026年11月</p>
+<p class="mdate">2026年11月1日</p>
 <p class="msign"><span>著者：梶町よん</span><span>発行人：藤沢宏光／ミサキプレッソ合同会社</span></p>
 </div></section>
 <section class="dark final cfinal" id="buy" data-label="購入する"><div class="wrap">
@@ -1072,10 +1069,18 @@ main>.cstrips .wrap{width:100%;max-width:none;margin:0;padding:0}
 <a class="cta xl" href="#buy"><span class="ctl" data-pre="ご購入" data-post="ご購入">ご購入</span><span class="tnote">2,530円（税込）・送料別</span><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a><p class="ctanote cnx">お支払いは Square で安全に。ご注文から2日以内に発送します（品切れで増刷中の場合は、お時間をいただくことがあります）。</p>
 <p class="fine cnote pend">購入ページは準備中です。</p></div></div>
 <p class="cnote2">※ご購入者のみなさまは「朗読版（全10話／4時間11分30秒）」をスマホやPCやタブレットでお楽しみ頂けます。<br/>家事をしながらや通勤時間やおやすみ前などにお聴きください。</p>
+<a class="stbn" href="#stores"><span>お店でも、手に取ってご購入いただけます</span><b>取り扱い店舗<i aria-hidden="true">→</i></b></a>
 <dl class="cbook"><div><dt>発売日</dt><dd>2026年11月1日</dd></div><div><dt>価格</dt><dd>2,530円（税込）　本体2,300円＋税／送料は別</dd></div><div><dt>著者</dt><dd>梶町よん</dd></div><div><dt>判型</dt><dd>B6判・232ページ</dd></div><div><dt>収録作</dt><dd>夕日の歌（長編）／短編3作「直美ちゃん」「Ｎ男とＪ子のパンクミュージック」「おかあちゃんのすき焼き」</dd></div><div><dt>発行人</dt><dd>藤沢宏光／ミサキプレッソ合同会社</dd></div></dl>
 <details class="tokusho"><summary>特定商取引法に基づく表記</summary><dl><div><dt>販売業者</dt><dd>ミサキプレッソ合同会社</dd></div><div><dt>運営責任者</dt><dd>藤沢宏光</dd></div><div><dt>所在地</dt><dd>〒238-0243　神奈川県三浦市三崎3-4-10</dd></div><div><dt>電話番号</dt><dd>請求があれば遅滞なく開示します</dd></div><div><dt>メールアドレス</dt><dd>info@kajimachiyon.com</dd></div><div><dt>販売価格</dt><dd>2,530円（税込）</dd></div><div><dt>商品代金以外の必要料金</dt><dd>送料（金額は確認中）</dd></div><div><dt>お支払い方法</dt><dd>クレジットカードほか（Square）</dd></div><div><dt>お支払いの時期</dt><dd>ご注文時にお支払いが確定します</dd></div><div><dt>商品の引き渡し時期</dt><dd>ご注文から2日以内に発送（品切れで増刷中の場合は、発送までお時間をいただくことがあります）</dd></div><div><dt>返品・交換</dt><dd>落丁などの場合は、着払いでご返送ください。新しいものをお送りします。</dd></div></dl></details>
 <div class="share"><span>シェアする</span><a id="sh-x" href="#" target="_blank" rel="noopener">X</a>
 <a id="sh-line" href="#" target="_blank" rel="noopener">LINE</a><button type="button" id="sh-copy">URLをコピー</button></div>
+</div></section>
+<section class="dark cstores" id="stores" data-label="取り扱い店舗"><div class="wrap">
+<p class="eyebrow">取り扱い店舗</p>
+<h2>お店で手に取って、<br/>ご購入いただけます。</h2>
+<p class="lede sm">下記の店舗では「夕日の歌」を店頭で手に取ってご購入が出来ます。</p>
+<ul class="slist"><li><h3>Cafe&amp;bar ミサキプレッソ</h3><p class="sad">神奈川県三浦市三崎3-4-10<a href="https://www.google.com/maps/search/?api=1&amp;query=Cafe%26bar%20%E3%83%9F%E3%82%B5%E3%82%AD%E3%83%97%E3%83%AC%E3%83%83%E3%82%BD%20%E7%A5%9E%E5%A5%88%E5%B7%9D%E7%9C%8C%E4%B8%89%E6%B5%A6%E5%B8%82%E4%B8%89%E5%B4%8E3-4-10" target="_blank" rel="noopener">地図</a></p><p class="shr">12時から21時　土曜日・日曜日・祝日のみ営業</p></li><li><h3>ミサキドーナツ 三崎本店</h3><p class="sad">神奈川県三浦市三崎3-3-4<a href="https://www.google.com/maps/search/?api=1&amp;query=%E3%83%9F%E3%82%B5%E3%82%AD%E3%83%89%E3%83%BC%E3%83%8A%E3%83%84%20%E4%B8%89%E5%B4%8E%E6%9C%AC%E5%BA%97%20%E7%A5%9E%E5%A5%88%E5%B7%9D%E7%9C%8C%E4%B8%89%E6%B5%A6%E5%B8%82%E4%B8%89%E5%B4%8E3-3-4" target="_blank" rel="noopener">地図</a></p><p class="shr">平日 11:00〜17:00／土日祝 10:00〜18:00　水曜日定休</p></li><li><h3>ミサキドーナツ＆カフェ 逗子</h3><p class="sad">神奈川県逗子市逗子6-5-3 1階<a href="https://www.google.com/maps/search/?api=1&amp;query=%E3%83%9F%E3%82%B5%E3%82%AD%E3%83%89%E3%83%BC%E3%83%8A%E3%83%84%EF%BC%86%E3%82%AB%E3%83%95%E3%82%A7%20%E9%80%97%E5%AD%90%20%E7%A5%9E%E5%A5%88%E5%B7%9D%E7%9C%8C%E9%80%97%E5%AD%90%E5%B8%82%E9%80%97%E5%AD%906-5-3%201%E9%9A%8E" target="_blank" rel="noopener">地図</a></p></li><li><h3>ミサキドーナツ＆ジェラート 葉山</h3><p class="sad">神奈川県三浦郡葉山町堀内905<a href="https://www.google.com/maps/search/?api=1&amp;query=%E3%83%9F%E3%82%B5%E3%82%AD%E3%83%89%E3%83%BC%E3%83%8A%E3%83%84%EF%BC%86%E3%82%B8%E3%82%A7%E3%83%A9%E3%83%BC%E3%83%88%20%E8%91%89%E5%B1%B1%20%E7%A5%9E%E5%A5%88%E5%B7%9D%E7%9C%8C%E4%B8%89%E6%B5%A6%E9%83%A1%E8%91%89%E5%B1%B1%E7%94%BA%E5%A0%80%E5%86%85905" target="_blank" rel="noopener">地図</a></p></li><li><h3>カフェプラザ dear KOREA</h3><p class="sad">神奈川県三浦市下浦町上宮田3258-4 チェルSeaみうら 1階<a href="https://www.google.com/maps/search/?api=1&amp;query=%E3%82%AB%E3%83%95%E3%82%A7%E3%83%97%E3%83%A9%E3%82%B6%20dear%20KOREA%20%E7%A5%9E%E5%A5%88%E5%B7%9D%E7%9C%8C%E4%B8%89%E6%B5%A6%E5%B8%82%E4%B8%8B%E6%B5%A6%E7%94%BA%E4%B8%8A%E5%AE%AE%E7%94%B03258-4%20%E3%83%81%E3%82%A7%E3%83%ABSea%E3%81%BF%E3%81%86%E3%82%89%201%E9%9A%8E" target="_blank" rel="noopener">地図</a></p></li></ul>
+<div class="srec"><h3>販売してくださるお店を、探しています</h3><p>「夕日の歌」を販売してくださるお店と出会いたいと思っています。<br/>本屋さんや飲食店や雑貨店やその他どんなお店でもご相談いただければ対応させていただきます。<br/>お問い合わせは以下のメールアドレスへ</p><p class="smail"><a href="mailto:info@kajimachiyon.com">info@kajimachiyon.com</a></p></div>
 </div></section>
 <section class="dark ckanso" id="kanso" data-label="感想"><div class="wrap">
 <p class="eyebrow">読んでくださった方へ</p>
@@ -1211,13 +1216,6 @@ if(c)c.addEventListener('click',function(){var done=function(){c.textContent='�
 (function(){if(!('IntersectionObserver' in window))return;   /* 予告編・冒頭映像・朗読は、ほかの章へスクロールして見えなくなったら止める（全画面で見ているときは止めない。オーナー指示 2026-10-15） */
 [['tv','#tplayer'],['ov','#ovplayer'],['kaud','#deck']].forEach(function(x){var m=document.getElementById(x[0]),box=document.querySelector(x[1]);if(!m||!box)return;
  new IntersectionObserver(function(es){es.forEach(function(e){if(e.intersectionRatio<.2&&!m.paused&&!(document.fullscreenElement||document.webkitFullscreenElement))m.pause();});},{threshold:[0,.2]}).observe(box);});})();
-(function(){var w=document.getElementById('rtabs');if(!w)return;   /* 試し読みのタブ: 押す・左右の矢印で切り替える（朗読は止めない） */
-var T=[].slice.call(w.querySelectorAll('.rtab'));
-function sel(t,f){T.forEach(function(x){var on=x===t;x.setAttribute('aria-selected',String(on));x.tabIndex=on?0:-1;
- document.getElementById(x.getAttribute('aria-controls')).classList.toggle('off',!on)});if(f)t.focus()}
-T.forEach(function(t,i){t.addEventListener('click',function(){sel(t)});
- t.addEventListener('keydown',function(e){var j=e.key==='ArrowRight'?i+1:e.key==='ArrowLeft'?i-1:e.key==='Home'?0:e.key==='End'?T.length-1:null;
-  if(j===null)return;e.preventDefault();sel(T[(j+T.length)%T.length],true)})});})();
 (function(){var fb=document.getElementById('fbook');if(!fb)return;   /* 誌面の本をめくる（縦書きの本: 左のページを右へめくって進む） */
 var P=JSON.parse(fb.getAttribute('data-pages')),n=P.length,cur=0,busy=false,st=document.getElementById('fbst'),L=st.querySelector('.fbl'),R=st.querySelector('.fbr'),
  lf=document.getElementById('fbleaf'),F=lf.querySelector('.fbf'),B=lf.querySelector('.fbb'),cnt=document.getElementById('fbcnt'),nx=document.getElementById('fbnext'),pv=document.getElementById('fbprev');
