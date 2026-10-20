@@ -235,14 +235,14 @@ a.poster:hover .pst{transform:scale(1.03)}
 </div></div>
 </section>
 <section id="gate" class="gate">
-<div class="tameshi"><p class="lab">ためしに聴く</p><ol id="feps" class="eps"></ol><p class="fine">第一話は、どなたでも聴けます。<br/>つづきは、本にはさんだ合言葉で。</p></div>
+<div class="tameshi"><p class="lab">ためしに聴く</p><ol id="feps" class="eps"></ol><p class="fine">第一話は、どなたでも聴けます。<br/>つづきは、本にはさんだカードから。</p></div>
 <div class="gbox">
-<p class="lede">本にはさんであるカードの<br/>合言葉を入れてください。<br/>ネットでお求めの方は、<br/>お礼のメールにも書いてあります。</p>
+<p class="lede">本にはさんであるカードの QR コードか、<br/>お礼のメールのリンクから開いてください。<br/>うまく開かないときは、カードに刷ってある<br/>「#」のあとの文字を入れてください。</p>
 <form id="gf" autocomplete="off">
-<label for="pw">合言葉</label>
+<label for="pw">カードの「#」のあとの文字</label>
 <input id="pw" name="aikotoba" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" required/>
 <button class="play" type="submit">ひらく</button>
-<p id="gerr" class="err" role="alert" hidden>合言葉がちがうようです。もう一度お確かめください。</p>
+<p id="gerr" class="err" role="alert" hidden>うまく開けませんでした。カードの文字をもう一度お確かめください。</p>
 </form>
 </div>
 <noscript><p class="err">このページは JavaScript を有効にしてご利用ください。</p></noscript>
@@ -253,7 +253,7 @@ a.poster:hover .pst{transform:scale(1.03)}
 <p class="lede">「夕日の歌」を、はじめから終わりまで。<br/>途中でとめても、つづきから聴けます。</p>
 <ol id="eps" class="eps"></ol>
 <p id="note" class="fine"></p>
-<p class="fine"><button id="out" class="textbtn" type="button">ログアウト（この端末から合言葉を消す）</button></p>
+<p class="fine"><button id="out" class="textbtn" type="button">ログアウト（この端末で開いたしるしを消す）</button></p>
 </section>
 </main>
 <div id="pl" class="pl" hidden>
@@ -279,7 +279,7 @@ var SALT="kakunin.vaseata.github.io/kiku/",LS="kiku.";
 function $(i){return document.getElementById(i)}
 function get(k){try{return localStorage.getItem(LS+k)}catch(e){return null}}
 function set(k,v){try{v==null?localStorage.removeItem(LS+k):localStorage.setItem(LS+k,v)}catch(e){}}
-function norm(s){return (s.normalize?s.normalize("NFKC"):s).trim().toLowerCase()}
+function norm(s){s=(s.normalize?s.normalize("NFKC"):s).trim();return s.split("#").pop().trim().toLowerCase()}   // カードの URL をまるごと入れても開く
 function sha256(str){
   var b=new TextEncoder().encode(str);
   if(window.crypto&&crypto.subtle)return crypto.subtle.digest("SHA-256",b).then(function(d){return hex(new Uint8Array(d))});
