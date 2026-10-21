@@ -7,7 +7,7 @@
 <title>黄色いテントの喫茶店</title>
 <!--
   『夕日の歌』の世界で遊ぶ1画面の試作（案A・2026-10-21）。
-  朝の開店から夜の閉店まで、喫茶店の一日をすごし、最後に路地でおにゃんどんに出会う。
+  朝の鎌倉山での鯉の餌やり、開店から夜の閉店まで、喫茶店の一日をすごし、最後に路地でおにゃんどんに出会う。
   台詞と地の文のうち b:1 の行は本文そのまま（校了PDF 261013_aSongForDusk.pdf の表記で照合済み）。
   ?mark を付けて開くと、本文の行に朱の点が付く（著者・藤沢さんの確認用）。
 -->
@@ -65,7 +65,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #txt{font-size:clamp(16px,2.2vw,19px);line-height:1.95;letter-spacing:.04em;flex:1;overflow:auto}
 #txt.neko{font-family:var(--klee)}
 #txt.book::after{content:"";display:none}
-.mark #txt.book::before{content:"本文";font:10px var(--mincho);color:var(--shu);border:1px solid var(--shu);padding:0 4px;margin-right:8px;vertical-align:2px}
+.mark .book::before{content:"本文";font:10px var(--mincho);color:var(--shu);border:1px solid var(--shu);padding:0 4px;margin-right:8px;vertical-align:2px}
 #next{position:absolute;right:max(20px,calc(50% - 340px));bottom:calc(14px + env(safe-area-inset-bottom));font-size:12px;color:var(--dim);
   animation:blink 1.4s infinite;opacity:0}
 #next.on{opacity:1}
@@ -99,6 +99,18 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #feed .items button{padding:12px;border:1px solid var(--line);font-size:15px;text-align:left}
 #feed .items button.on{border-color:var(--shu);background:rgba(237,109,70,.12)}
 #feed .items button.on::after{content:"　✓";color:var(--shu)}
+
+/* 鯉の池（鎌倉山の庭の絵を暗く敷き、その上に鯉を描く） */
+#pond{position:absolute;z-index:4;left:0;right:0;top:48px;bottom:220px;display:none;overflow:hidden;touch-action:none;cursor:crosshair}
+#pond.on{display:block}
+#pond::before{content:"";position:absolute;inset:-12px;background:url(assets/img007.jpg) center 80%/cover;filter:brightness(.42) contrast(1.15) blur(2px)}
+#pond canvas{position:absolute;inset:0;width:100%;height:100%}
+.kd{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.kd i{width:30px;height:30px;border:1px solid var(--line);display:grid;place-items:center;font:12px var(--mincho);font-style:normal;color:var(--dim);transition:color .3s}
+.kd i.ok{color:var(--paper)}
+.krow{display:flex;align-items:center;gap:16px}
+.krow .big{flex:1}
+.krow .meter{min-width:5.5em}
 
 /* なでる */
 #pet{position:absolute;z-index:4;inset:48px 0 var(--boxh,34vh) 0;display:none;cursor:pointer;touch-action:none}
@@ -151,6 +163,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
   <div id="banner"><b></b><small></small></div>
   <div id="pet" aria-label="おにゃんどんをなでる"></div>
+  <div id="pond" aria-label="鯉の池。押したところへ餌を投げる"><canvas></canvas></div>
 
   <section id="box" aria-live="polite">
     <div id="who"></div>
@@ -173,6 +186,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     </div>
   </section>
 
+  <!-- 鯉の餌やり -->
+  <section id="koi" class="sheet" aria-label="鯉の餌やり">
+    <h3>鯉の餌やり</h3>
+    <p class="hint" id="kh"></p>
+    <div class="kd" id="kdots"></div>
+    <div class="krow">
+      <div class="meter" id="km"></div>
+      <button class="big" id="kb">よーしよーし</button>
+    </div>
+  </section>
+
   <!-- 紙皿に盛る -->
   <section id="feed" class="sheet" aria-label="紙皿に盛る">
     <h3>紙皿に盛る</h3>
@@ -191,8 +215,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
     <p class="from">梶町よん『夕日の歌』より</p>
     <h1>黄色いテントの喫茶店</h1>
-    <p class="lede">三崎銀座通り商店街の、ちいさな喫茶店。<br>開店から閉店まで、ある一日をすごしてください。</p>
-    <button class="big" id="go">店をあける</button>
+    <p class="lede">三崎銀座通り商店街の、ちいさな喫茶店。<br>朝の鯉の餌やりから閉店まで、ある一日をすごしてください。</p>
+    <button class="big" id="go">一日をはじめる</button>
   </section>
 
   <!-- おわり -->
@@ -200,12 +224,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <div class="card">
       <div class="ph"><img src="assets/img025.jpg" alt="窓際の席のご夫婦"><i></i></div>
       <p class="cap"><b>黄色いテントの喫茶店の、ある一日</b><br>
-        <span class="guests">今日のお客：漁師のおじさん／Ｙさんと Ｅさん／ご夫婦／それから、おにゃんどん</span></p>
+        <span class="guests">朝：鎌倉山で鯉の餌やり<br>今日のお客：漁師のおじさん／Ｙさんと Ｅさん／ご夫婦／それから、おにゃんどん</span></p>
     </div>
     <p class="after">この一日は、小説『夕日の歌』の中の一日です。<br>店をはじめた「僕」の、その先の話は本で。</p>
     <div class="acts">
       <a class="big" href="https://kajimachiyon.com/" target="_blank" rel="noopener">『夕日の歌』のこと</a>
-      <button class="btn" id="again">もういちど、店をあける</button>
+      <button class="btn" id="again">もういちど、一日をはじめる</button>
     </div>
   </section>
 </div>
@@ -222,7 +246,9 @@ if (new URLSearchParams(location.search).has('mark')) document.body.classList.ad
 
 // ── 場面 ─────────────────────────────
 const SCENES = {
-  asa:  {img:'img015.jpg', tint:'asa',  clock:'午前十時',   label:'開店',     sub:'朝十時'},
+  koi:  {img:'img007.jpg', tint:'asa',  clock:'午前八時',   label:'鯉の餌やり', sub:'鎌倉山・午前八時'},
+  koi2: {img:'img008.jpg', tint:'asa',  clock:'午前八時'},
+  asa: {img:'img015.jpg', tint:'asa',  clock:'午前十時',   label:'開店',     sub:'朝十時'},
   beer: {img:'img021.jpg', tint:'asa',  clock:'午前十時'},
   hiru: {img:'img028.jpg', tint:'hiru', clock:'午後二時',   label:'昼下がり', sub:'午後二時'},
   yu:   {img:'img025.jpg', tint:'yu',   clock:'午後五時',   label:'夕暮れ',   sub:'午後五時', glow:true},
@@ -372,6 +398,200 @@ function brew(){
   });
 }
 
+// ── 鯉の餌やり。水面を押すと団子を投げる。金色の鯉は欲ばりで、よーしよーしで順番を守らせる ──
+// 結果 {fed:[…], even, goldHog} を返す（fed[0] が金色の鯉）
+const KOI = [
+  {base:'#d6a943', spots:[['#f3d27a', .22, 0, .14]], scale:1.35, gold:true},          // 金色の錦鯉（ひときわ威厳がある）
+  {base:'#f1ebe0', spots:[['#e0573a', .30, 0, .16], ['#e0573a', -.05, .35, .13]]},      // 紅白
+  {base:'#f1ebe0', spots:[['#e0573a', .10, -.2, .2]]},
+  {base:'#f1ebe0', spots:[['#e0573a', .32, 0, .1], ['#e0573a', 0, -.25, .12], ['#e0573a', -.22, .15, .09]]},
+  {base:'#5d5852', spots:[['#efe8da', .30, 0, .12], ['#efe8da', -.12, .2, .07]]},      // 墨
+  {base:'#9fb0b8', spots:[['#e0573a', .08, .4, .1]]},                                   // 浅黄
+  {base:'#e9e4da', spots:[['#2a2826', -.08, .25, .08], ['#2a2826', .2, -.3, .06]]},     // 白に墨
+];
+const DANGO = 14;
+function koiGame(){
+  const sh = $('#koi'), pond = $('#pond'), cv = pond.querySelector('canvas'), ctx = cv.getContext('2d');
+  const km = $('#km'), kb = $('#kb'), kh = $('#kh'), kd = $('#kdots');
+  clear(); sh.classList.add('on'); pond.classList.add('on');
+  kh.classList.remove('book');
+  kh.textContent = '水面を押すと、そこへ餌の団子を投げる。どの鯉にも、まんべんなく。';
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  let W = 1, H = 1;
+  const fit = () => {
+    pond.style.bottom = sh.offsetHeight + 'px';
+    const r = pond.getBoundingClientRect(); W = r.width; H = r.height;
+    cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  };
+  fit(); addEventListener('resize', fit);
+  const unit = () => Math.min(W, H, 520);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const fish = KOI.map((k, i) => ({
+    k, i, fed:0, x:rnd(.2, .8) * W, y:rnd(.15, .7) * H, a:rnd(0, 6.28), phase:rnd(0, 6), tx:0, ty:0, wt:0, eat:0, cool:0,
+  }));
+  const foods = [], rips = [];
+  let left = DANGO, calm = 0, cd = 0, over = false, last = performance.now(), raf;
+
+  kd.innerHTML = fish.map(f => `<i style="border-top:4px solid ${f.k.base}">0</i>`).join('');
+  const dots = [...kd.children];
+  const meter = () => km.innerHTML = `${left}<small>団子</small>`;
+  meter(); kb.textContent = 'よーしよーし'; kb.disabled = false;
+
+  const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+  const newTarget = f => { f.tx = rnd(.1, .9) * W; f.ty = rnd(.1, .85) * H; f.wt = rnd(2, 5); };
+  fish.forEach(newTarget);
+
+  pond.onpointerdown = e => {
+    if (over || left <= 0) return;
+    const r = pond.getBoundingClientRect();
+    foods.push({x:e.clientX - r.left, y:e.clientY - r.top, t:0, sx:W / 2, sy:H + 20});
+    left--; meter();
+  };
+  kb.onclick = () => {
+    if (over || cd > 0) return;
+    calm = 3; cd = 7;
+    kh.textContent = '「よーしよーし、順番に食べるんだよ」'; kh.classList.add('book');
+  };
+
+  // 背骨にそって体を描く（頭が +x）
+  function drawKoi(f){
+    const L = unit() * .2 * (f.k.scale || 1), n = 12, amp = L * (f.chase ? .1 : .07);
+    const sp = [];
+    for (let i = 0; i <= n; i++){ const u = i / n; sp.push([L / 2 - u * L, Math.sin(f.phase - u * 3.2) * amp * u * u]); }
+    const wd = u => L * .13 * (u < .3 ? .62 + u / .3 * .38 : 1 - Math.pow((u - .3) / .7, 1.5) * .86);
+    const lf = [], rt = [];
+    sp.forEach((p, i) => {
+      const q = sp[Math.min(n, i + 1)], o = sp[Math.max(0, i - 1)];
+      let dx = q[0] - o[0], dy = q[1] - o[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+      const w = wd(i / n); lf.push([p[0] - dy * w, p[1] + dx * w]); rt.push([p[0] + dy * w, p[1] - dx * w]);
+    });
+    const tail = sp[n], tw = Math.sin(f.phase - 3.2) * .5;
+    const body = () => {
+      ctx.beginPath(); ctx.moveTo(L / 2 + L * .02, 0);
+      lf.forEach(p => ctx.lineTo(p[0], p[1]));
+      rt.slice().reverse().forEach(p => ctx.lineTo(p[0], p[1]));
+      ctx.closePath();
+    };
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.a);
+    // 尾びれと胸びれ（半透明）
+    ctx.fillStyle = f.k.base; ctx.globalAlpha = .55;
+    ctx.beginPath(); ctx.moveTo(tail[0] + L * .04, tail[1]);
+    ctx.quadraticCurveTo(tail[0] - L * .12, tail[1] - L * (.14 + tw * .05), tail[0] - L * .2, tail[1] - L * .12 + tw * L * .06);
+    ctx.quadraticCurveTo(tail[0] - L * .1, tail[1], tail[0] - L * .2, tail[1] + L * .12 + tw * L * .06);
+    ctx.quadraticCurveTo(tail[0] - L * .12, tail[1] + L * (.14 - tw * .05), tail[0] + L * .04, tail[1]);
+    ctx.fill();
+    const fp = lf[3], fq = rt[3], fl = Math.sin(f.phase * 1.3) * .3;
+    ctx.beginPath(); ctx.ellipse(fp[0] - L * .04, fp[1] + L * .05, L * .07, L * .035, .9 + fl, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(fq[0] - L * .04, fq[1] - L * .05, L * .07, L * .035, -.9 - fl, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+    // 体（水底に落ちる影つき）
+    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = L * .12; ctx.shadowOffsetX = L * .05; ctx.shadowOffsetY = L * .09;
+    ctx.fillStyle = f.k.base; body(); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.save(); body(); ctx.clip();
+    f.k.spots.forEach(([c, sx, sy, r]) => {
+      const u = .5 - sx, w = wd(Math.min(1, Math.max(0, u)));
+      ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(sx * L, sy * w + (sp[Math.round(u * n)] || [0, 0])[1], r * L * 1.3, r * L, 0, 0, 7); ctx.fill();
+    });
+    // 背の光
+    const g = ctx.createLinearGradient(0, -L * .13, 0, L * .13);
+    g.addColorStop(0, 'rgba(0,0,0,.25)'); g.addColorStop(.5, 'rgba(255,255,255,.12)'); g.addColorStop(1, 'rgba(0,0,0,.25)');
+    ctx.fillStyle = g; ctx.fillRect(-L, -L, 2 * L, 2 * L);
+    ctx.restore();
+    // 目と口
+    ctx.fillStyle = '#1a1714';
+    const ew = wd(.08) * .6;
+    ctx.beginPath(); ctx.arc(L * .4, ew, L * .015, 0, 7); ctx.arc(L * .4, -ew, L * .015, 0, 7); ctx.fill();
+    if (f.eat > 0){ ctx.beginPath(); ctx.ellipse(L * .5, 0, L * .03, L * .045, 0, 0, 7); ctx.fill(); }
+    ctx.restore();
+  }
+
+  const loop = now => {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    calm = Math.max(0, calm - dt); cd = Math.max(0, cd - dt);
+    kb.disabled = over ? false : cd > 0;
+    if (!over) kb.textContent = cd > 0 ? `よーしよーし（${Math.ceil(cd)}）` : 'よーしよーし';
+    const U = unit();
+    const minFed = Math.min(...fish.map(f => f.fed));
+    // 餌：投げる → 着水 → 5秒で沈む
+    for (let j = foods.length - 1; j >= 0; j--){
+      const d = foods[j]; d.t += dt;
+      if (d.t > .35 && !d.landed){ d.landed = true; rips.push({x:d.x, y:d.y, t:0}); }
+      if (d.t > 5.35){ foods.splice(j, 1); }
+    }
+    fish.forEach(f => {
+      f.eat = Math.max(0, f.eat - dt); f.cool = Math.max(0, f.cool - dt);
+      // よーしよーしの間は、いちばん食べていない鯉だけが寄ってくる
+      const may = f.cool <= 0 && (calm <= 0 || f.fed <= minFed);
+      let tgt = null, best = Infinity;
+      if (may) foods.forEach(d => {
+        if (!d.landed) return;
+        const dist = Math.hypot(d.x - f.x, d.y - f.y);
+        if ((f.k.gold || dist < U * .55) && dist < best){ best = dist; tgt = d; }
+      });
+      f.chase = !!tgt;
+      if (tgt){ f.tx = tgt.x; f.ty = tgt.y; }
+      else { f.wt -= dt; if (f.wt <= 0 || Math.hypot(f.tx - f.x, f.ty - f.y) < U * .08) newTarget(f); }
+      const L = U * .2 * (f.k.scale || 1);
+      let v = f.chase ? L * 1.6 * (f.k.gold ? 1.3 : 1) : L * .45;
+      if (calm > 0 && !f.chase) v *= .4;
+      const turn = (f.chase ? 3.6 : 1.8) * dt;
+      f.a += Math.max(-turn, Math.min(turn, angTo(f.a, Math.atan2(f.ty - f.y, f.tx - f.x))));
+      f.x += Math.cos(f.a) * v * dt; f.y += Math.sin(f.a) * v * dt;
+      f.x = Math.max(-L * .2, Math.min(W + L * .2, f.x)); f.y = Math.max(-L * .2, Math.min(H + L * .2, f.y));
+      f.phase += dt * (f.chase ? 9 : 4);
+      // 口が団子にとどいたら食べる
+      if (tgt){
+        const hx = f.x + Math.cos(f.a) * L * .5, hy = f.y + Math.sin(f.a) * L * .5;
+        if (Math.hypot(tgt.x - hx, tgt.y - hy) < L * .22){
+          foods.splice(foods.indexOf(tgt), 1); f.fed++; f.eat = .45; f.cool = f.k.gold ? .3 : .8;
+          rips.push({x:tgt.x, y:tgt.y, t:0, small:true});
+          dots[f.i].textContent = f.fed; dots[f.i].classList.add('ok');
+        }
+      }
+    });
+    // 描く
+    ctx.clearRect(0, 0, W, H);
+    rips.forEach(r => r.t += dt);
+    for (let j = rips.length - 1; j >= 0; j--) if (rips[j].t > 1.4) rips.splice(j, 1);
+    ctx.lineWidth = 1.2;
+    rips.forEach(r => {
+      const p = r.t / 1.4;
+      ctx.strokeStyle = `rgba(239,232,218,${(1 - p) * .5})`;
+      ctx.beginPath(); ctx.ellipse(r.x, r.y, (r.small ? 14 : 24) + p * U * .12, ((r.small ? 14 : 24) + p * U * .12) * .55, 0, 0, 7); ctx.stroke();
+    });
+    foods.forEach(d => {
+      if (!d.landed){
+        const p = d.t / .35, x = d.sx + (d.x - d.sx) * p, y = d.sy + (d.y - d.sy) * p - Math.sin(Math.PI * p) * H * .18;
+        ctx.fillStyle = '#c9b48f'; ctx.beginPath(); ctx.arc(x, y, U * .018 * (1.6 - p * .6), 0, 7); ctx.fill();
+      } else {
+        const s = Math.min(1, (d.t - .35) / 5);
+        ctx.fillStyle = `rgba(201,180,143,${1 - s * .8})`; ctx.beginPath(); ctx.arc(d.x, d.y, U * .016 * (1 - s * .4), 0, 7); ctx.fill();
+      }
+    });
+    fish.slice().sort((p, q) => (p.k.gold ? 1 : 0) - (q.k.gold ? 1 : 0)).forEach(drawKoi);   // 金色の鯉はいちばん上
+    if (!over && left <= 0 && foods.length === 0) finish();
+    raf = requestAnimationFrame(loop);
+  };
+  let done;
+  const result = new Promise(r => done = r);
+  function finish(){
+    over = true; pond.onpointerdown = null;
+    const fed = fish.map(f => f.fed), mn = Math.min(...fed), mx = Math.max(...fed);
+    const even = mn >= 1 && mx - mn <= 1, goldHog = fed[0] === mx && mx - mn >= 2;
+    kh.classList.remove('book');
+    kh.textContent = even ? 'どの鯉も、ちゃんと食べた。' : goldHog ? '金色の鯉ばかりが、よく食べた。' : mn === 0 ? 'まだ口をあけている鯉がいる。' : 'すこし、かたよった。';
+    kb.textContent = '池をあとにする';
+    kb.onclick = () => {
+      cancelAnimationFrame(raf); removeEventListener('resize', fit);
+      sh.classList.remove('on'); pond.classList.remove('on');
+      setTimeout(() => done({fed, even, goldHog}), 350);
+    };
+  }
+  raf = requestAnimationFrame(loop);
+  return result;
+}
+
 // ── 紙皿に盛る ──
 function feed(){
   const sh = $('#feed'), fb = $('#fb'), items = [...sh.querySelectorAll('.items button')];
@@ -401,6 +621,21 @@ function pet(need = 6){
 
 // ── 一日の流れ ─────────────────────────
 const PARTS = {
+ koi: async () => {
+  await scene('koi');
+  await N('早朝に資材置き場の冷蔵庫の中から練り餌をバケツに移して、手のひらで団子状に丸めて池のほとりから一匹一五〇万円の鯉にまんべんなく食べさせるのだ。', true);
+  await N('悠々と泳ぐたくさんの鯉の中、ひときわ威厳のある金色の錦鯉と眼が合った時に身がすくむような感触があったけど、きっと気のせいだろう。', true);
+  await say('僕', '「よーしよーし、お腹がすいたか、待ってろよ今あげるから」', true);
+  const k = await koiGame();
+  await scene('koi2', false);
+  await N('鯉は意に介さず餌を求めて僕の周りに集まっていた。', true);
+  if (k.even) await N('ほぼすべての鯉と目が合ううちに、どうやら僕のことを見下している気がしてきた。', true);
+  else if (k.goldHog) await N('金色の鯉が、じっとこちらを見ている。……明後日は、もっとうまくやろう。');
+  else await N('……明後日は、もっとうまくやろう。');
+  await N('僕は御代川会長に雇われているのではなくこの鯉たちに雇われていると思った。', true);
+  await N('今、この仕事を失うわけにはいかない。', true);
+  await N('餌やりを終えて、三崎へ車を走らせた。');
+ },
  asa: async () => {
   await scene('asa');
   await N('商店街の入り口近くの良い立地だけど、ひとっこひとり歩いていない商店街は猫が道路の真ん中で毛繕いをしていた。', true);
@@ -494,7 +729,7 @@ const PARTS = {
   $('#end').classList.remove('hide');
  },
 };
-// ?ba=hiru / yu / yoru でその場面から始める（確認用）
+// ?ba=asa / hiru / yu / yoru でその場面から始める（確認用）
 const ORDER = Object.keys(PARTS);
 async function day(){
   const from = Math.max(0, ORDER.indexOf(new URLSearchParams(location.search).get('ba')));
@@ -504,7 +739,7 @@ async function day(){
 $('#go').onclick = () => { $('#start').classList.add('hide'); day(); };
 $('#again').onclick = () => { $('#end').classList.add('hide'); day(); };
 // はじめの画面の後ろに朝の絵を敷いておく
-$('#pic').src = 'assets/img015.jpg'; $('#bg').style.backgroundImage = 'url(assets/img015.jpg)'; $('#tint').className = 'asa';
+$('#pic').src = 'assets/img007.jpg'; $('#bg').style.backgroundImage = 'url(assets/img007.jpg)'; $('#tint').className = 'asa';
 })();
 </script>
 </body>
