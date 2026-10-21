@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>黄色いテントの喫茶店</title>
+<!--
+  『夕日の歌』の世界で遊ぶ1画面の試作（案A・2026-10-21）。
+  朝の開店から夜の閉店まで、喫茶店の一日をすごし、最後に路地でおにゃんどんに出会う。
+  台詞と地の文のうち b:1 の行は本文そのまま（校了PDF 261013_aSongForDusk.pdf の表記で照合済み）。
+  ?mark を付けて開くと、本文の行に朱の点が付く（著者・藤沢さんの確認用）。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One&family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0e0d0c; --paper:#efe8da; --dim:#a39c90; --shu:#ED6D46; --shu-deep:#c8432a;
+  --box:rgba(14,13,12,.86); --line:rgba(239,232,218,.22);
+  --mincho:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --klee:"Klee One","Hiragino Maru Gothic ProN",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--ink);color:var(--paper);font-family:var(--mincho);
+  -webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+#app{position:fixed;inset:0;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+
+/* 絵（ぼかした地＋全体が見える絵）と、時刻の色 */
+#scene{position:absolute;inset:0;isolation:isolate;overflow:hidden}
+#bg{position:absolute;inset:-40px;background:center/cover no-repeat;filter:blur(28px) brightness(.45);transition:background-image .8s}
+#pic{position:absolute;left:0;right:0;top:48px;bottom:var(--boxh,34vh);margin:auto;width:100%;height:calc(100% - 48px - var(--boxh,34vh));
+  object-fit:contain;transition:opacity .8s}
+#pic.out{opacity:0}
+#tint{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 2.4s ease,background 2.4s ease}
+#tint.asa {opacity:.5; background:linear-gradient(180deg,#9fb3c8,#e9dcc4);mix-blend-mode:soft-light}
+#tint.hiru{opacity:.35;background:linear-gradient(180deg,#e8d2ad,#bfa27a);mix-blend-mode:soft-light}
+#tint.yu  {opacity:.62;background:linear-gradient(180deg,#ED6D46 0%,#f2a35c 48%,#6b2a1a 100%);mix-blend-mode:color}
+#tint.yoru{opacity:.5; background:linear-gradient(180deg,#0d1b3a,#1e2a4a);mix-blend-mode:color}
+#glow{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 2.4s;
+  background:radial-gradient(60% 50% at 50% 38%,rgba(237,109,70,.35),transparent 70%);mix-blend-mode:screen}
+#glow.on{opacity:1}
+
+/* 上の帯 */
+#hud{position:relative;z-index:3;height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:linear-gradient(rgba(14,13,12,.8),rgba(14,13,12,0))}
+#hud .yk{width:20px;height:20px;color:var(--shu);flex:none}
+#hud .t{font-size:13px;letter-spacing:.12em;color:var(--dim)}
+#clock{margin-left:auto;font-size:14px;letter-spacing:.14em}
+
+/* 時刻の幕 */
+#banner{position:absolute;z-index:4;left:0;right:0;top:38%;text-align:center;pointer-events:none;opacity:0;transition:opacity .9s}
+#banner.on{opacity:1}
+#banner b{display:block;font-weight:600;font-size:clamp(26px,5vw,40px);letter-spacing:.3em;text-shadow:0 2px 18px #000}
+#banner small{display:block;margin-top:10px;font-size:13px;letter-spacing:.3em;color:var(--dim)}
+
+/* ことばの箱 */
+#box{position:absolute;z-index:3;left:0;right:0;bottom:0;height:var(--boxh,34vh);min-height:180px;
+  padding:18px max(16px,calc(50% - 360px)) calc(18px + env(safe-area-inset-bottom));
+  background:var(--box);border-top:1px solid var(--line);display:flex;flex-direction:column}
+#who{min-height:1.4em;font-size:13px;letter-spacing:.2em;color:var(--shu);margin-bottom:8px}
+#who.neko{font-family:var(--klee)}
+#txt{font-size:clamp(16px,2.2vw,19px);line-height:1.95;letter-spacing:.04em;flex:1;overflow:auto}
+#txt.neko{font-family:var(--klee)}
+#txt.book::after{content:"";display:none}
+.mark #txt.book::before{content:"本文";font:10px var(--mincho);color:var(--shu);border:1px solid var(--shu);padding:0 4px;margin-right:8px;vertical-align:2px}
+#next{position:absolute;right:max(20px,calc(50% - 340px));bottom:calc(14px + env(safe-area-inset-bottom));font-size:12px;color:var(--dim);
+  animation:blink 1.4s infinite;opacity:0}
+#next.on{opacity:1}
+@keyframes blink{50%{opacity:.25}}
+#choices{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+#choices button,.btn{display:block;width:100%;text-align:left;padding:11px 14px;border:1px solid var(--line);
+  font-size:15px;letter-spacing:.06em;line-height:1.5;transition:border-color .2s,background .2s}
+#choices button:hover,.btn:hover{border-color:var(--shu)}
+#choices button.act{border-color:var(--shu);color:var(--paper)}
+#choices button.act::before{content:"▸ ";color:var(--shu)}
+
+/* 下から出る板（コーヒー・紙皿） */
+.sheet{position:absolute;z-index:5;left:0;right:0;bottom:0;padding:18px max(16px,calc(50% - 360px)) calc(20px + env(safe-area-inset-bottom));
+  background:#161412;border-top:1px solid var(--shu);transform:translateY(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:none}
+.sheet h3{font-weight:600;font-size:15px;letter-spacing:.2em;color:var(--shu);margin-bottom:4px}
+.sheet .hint{font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:12px;min-height:1.8em}
+.sheet .row{display:flex;align-items:center;gap:18px}
+.sheet svg{flex:none;width:120px;height:120px}
+.sheet .ctl{flex:1;display:flex;flex-direction:column;gap:10px}
+.big{padding:14px 16px;border:1px solid var(--shu);background:rgba(237,109,70,.08);font-size:16px;letter-spacing:.12em;text-align:center;touch-action:none}
+.big:active,.big.down{background:rgba(237,109,70,.28)}
+.big[disabled]{opacity:.35;pointer-events:none}
+.meter{font-size:28px;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.meter small{font-size:13px;color:var(--dim);margin-left:6px}
+.steps{display:flex;gap:6px;margin-bottom:10px}
+.steps i{flex:1;height:2px;background:var(--line)}
+.steps i.on{background:var(--shu)}
+
+#feed .items{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 12px}
+#feed .items button{padding:12px;border:1px solid var(--line);font-size:15px;text-align:left}
+#feed .items button.on{border-color:var(--shu);background:rgba(237,109,70,.12)}
+#feed .items button.on::after{content:"　✓";color:var(--shu)}
+
+/* なでる */
+#pet{position:absolute;z-index:4;inset:48px 0 var(--boxh,34vh) 0;display:none;cursor:pointer;touch-action:none}
+#pet.on{display:block}
+.goro{position:absolute;font-family:var(--klee);color:var(--shu);font-size:18px;pointer-events:none;
+  animation:goro 1.4s ease-out forwards;text-shadow:0 1px 6px #000}
+@keyframes goro{from{opacity:1;transform:translate(-50%,-50%)}to{opacity:0;transform:translate(-50%,-160%)}}
+
+/* はじめ・おわり */
+.cover{position:absolute;z-index:8;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px 16px;background:rgba(14,13,12,.9);transition:opacity .8s}
+.cover.hide{opacity:0;pointer-events:none}
+.cover .from{font-size:12px;letter-spacing:.3em;color:var(--dim)}
+.cover h1{font-weight:600;font-size:clamp(26px,6vw,44px);letter-spacing:.24em;margin:14px 0 6px}
+.cover .lede{font-size:14px;line-height:2;color:var(--dim);margin:12px 0 26px}
+.cover .big{min-width:220px}
+.cover .yk{width:26px;height:26px;color:var(--shu);margin-bottom:12px}
+
+#end{overflow:auto;justify-content:flex-start}
+#end .card{width:min(420px,100%);margin:auto;background:#f3ecdc;color:#1a1714;padding:14px 14px 18px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+#end .ph{position:relative;aspect-ratio:3/2;overflow:hidden;isolation:isolate}
+#end .ph img{width:100%;height:100%;object-fit:cover;display:block}
+#end .ph i{position:absolute;inset:0;background:linear-gradient(180deg,#ED6D46,#f2a35c 50%,#6b2a1a);mix-blend-mode:color;opacity:.6}
+#end .cap{font-size:13px;letter-spacing:.1em;margin-top:12px;line-height:1.9;text-align:left}
+#end .cap b{font-weight:600;font-size:15px}
+#end .guests{font-size:12px;color:#6b6157}
+#end .after{margin-top:22px;font-size:14px;line-height:2;color:var(--paper)}
+#end .acts{display:flex;flex-direction:column;gap:10px;margin-top:16px;width:min(420px,100%)}
+#end .acts .big{background:var(--shu-deep);border-color:var(--shu-deep);color:#fff;text-decoration:none}
+#end .acts .btn{text-align:center}
+
+@media (min-width:900px){ :root{--boxh:30vh} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene">
+    <div id="bg"></div>
+    <img id="pic" alt="">
+    <div id="glow"></div>
+    <div id="tint"></div>
+  </div>
+
+  <header id="hud">
+    <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
+    <span class="t">黄色いテントの喫茶店</span>
+    <span id="clock"></span>
+  </header>
+
+  <div id="banner"><b></b><small></small></div>
+  <div id="pet" aria-label="おにゃんどんをなでる"></div>
+
+  <section id="box" aria-live="polite">
+    <div id="who"></div>
+    <div id="txt"></div>
+    <div id="choices"></div>
+    <div id="next">▼</div>
+  </section>
+
+  <!-- コーヒーを淹れる -->
+  <section id="brew" class="sheet" aria-label="コーヒーを淹れる">
+    <div class="steps"><i></i><i></i><i></i></div>
+    <h3 id="bt"></h3>
+    <p class="hint" id="bh"></p>
+    <div class="row">
+      <svg viewBox="0 0 120 120" id="bsvg" aria-hidden="true"></svg>
+      <div class="ctl">
+        <div class="meter" id="bm"></div>
+        <button class="big" id="bb"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 紙皿に盛る -->
+  <section id="feed" class="sheet" aria-label="紙皿に盛る">
+    <h3>紙皿に盛る</h3>
+    <p class="hint">ぜんぶ選んだら、おにゃんどんの前に置く。</p>
+    <div class="items">
+      <button data-k="pan">冷凍のパンを牛乳にしたす</button>
+      <button data-k="ham">ハム</button>
+      <button data-k="anc">アンチョビ</button>
+      <button data-k="oil">オリーブオイルをかける</button>
+    </div>
+    <button class="big" id="fb" disabled>紙皿を置く</button>
+  </section>
+
+  <!-- はじめ -->
+  <section id="start" class="cover">
+    <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
+    <p class="from">梶町よん『夕日の歌』より</p>
+    <h1>黄色いテントの喫茶店</h1>
+    <p class="lede">三崎銀座通り商店街の、ちいさな喫茶店。<br>開店から閉店まで、ある一日をすごしてください。</p>
+    <button class="big" id="go">店をあける</button>
+  </section>
+
+  <!-- おわり -->
+  <section id="end" class="cover hide">
+    <div class="card">
+      <div class="ph"><img src="assets/img025.jpg" alt="窓際の席のご夫婦"><i></i></div>
+      <p class="cap"><b>黄色いテントの喫茶店の、ある一日</b><br>
+        <span class="guests">今日のお客：漁師のおじさん／Ｙさんと Ｅさん／ご夫婦／それから、おにゃんどん</span></p>
+    </div>
+    <p class="after">この一日は、小説『夕日の歌』の中の一日です。<br>店をはじめた「僕」の、その先の話は本で。</p>
+    <div class="acts">
+      <a class="big" href="https://kajimachiyon.com/" target="_blank" rel="noopener">『夕日の歌』のこと</a>
+      <button class="btn" id="again">もういちど、店をあける</button>
+    </div>
+  </section>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="yk" viewBox="611.39 507.49 25.34 24.91" fill="currentColor"><path d="M617.926 525.715L617.963 525.550C615.381 525.642 613.568 527.821 613.568 529.725C613.568 530.714 614.062 531.153 614.722 531.153C615.766 531.153 616.736 530.037 617.926 525.715M627.173 526.081C627.173 526.869 626.532 527.363 625.598 527.363C623.932 527.363 621.844 526.301 619.867 525.788C618.548 530.458 616.351 532.399 614.026 532.399C612.506 532.399 611.389 531.556 611.389 529.908C611.389 527.509 613.916 524.763 618.219 524.653C618.750 522.822 619.226 521.376 619.794 519.709L619.702 519.672C618.585 522.584 617.139 523.902 615.582 523.902C614.411 523.902 613.495 523.261 613.495 522.035C613.495 520.735 614.209 518.903 614.942 515.846C615.180 514.820 615.619 514.655 616.498 514.655C617.010 514.655 617.267 514.857 617.267 515.150C617.267 515.901 615.656 519.984 615.656 521.540C615.656 522.126 615.912 522.382 616.370 522.382C617.468 522.382 619.135 520.607 620.325 515.992L620.398 515.699C620.600 514.912 620.892 514.582 621.973 514.582C622.596 514.582 622.778 514.802 622.668 515.296L622.613 515.608C622.522 515.992 622.247 516.871 620.929 521.852L620.160 524.745C621.936 524.910 623.713 525.276 625.525 525.276C626.130 525.276 626.587 525.202 626.972 525.147C627.082 525.367 627.173 525.679 627.173 526.081Z"/><path d="M633.429 525.635C634.509 525.635 635.443 525.122 636.212 524.262C636.542 524.390 636.725 524.610 636.725 524.903C636.725 526.056 634.894 527.942 632.788 527.942C630.152 527.942 628.668 525.800 627.387 519.153C627.093 519.153 626.892 519.062 626.892 518.750C626.892 518.347 627.350 517.652 627.862 517.652C628.192 517.652 628.357 517.853 628.412 518.366C629.218 517.835 629.657 516.974 629.657 516.278C629.657 515.692 629.383 515.418 628.961 515.418C627.808 515.418 626.178 518.164 625.354 521.973L625.116 523.126C624.786 523.200 624.512 523.255 624.274 523.255C623.413 523.255 623.047 522.815 623.047 522.321C623.047 521.442 624.017 518.860 625.995 509.686L626.251 508.515C626.398 507.764 626.691 507.489 627.771 507.489C628.229 507.489 628.521 507.636 628.521 508.075C628.521 508.899 627.167 513.440 625.299 519.464L625.391 519.501C626.764 515.637 628.119 513.861 629.950 513.861C631.049 513.861 631.836 514.557 631.836 515.692C631.836 517.084 630.737 518.439 628.595 519.062C630.261 523.914 631.525 525.635 633.429 525.635Z"/></symbol>
+</svg>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+if (new URLSearchParams(location.search).has('mark')) document.body.classList.add('mark');
+
+// ── 場面 ─────────────────────────────
+const SCENES = {
+  asa:  {img:'img015.jpg', tint:'asa',  clock:'午前十時',   label:'開店',     sub:'朝十時'},
+  beer: {img:'img021.jpg', tint:'asa',  clock:'午前十時'},
+  hiru: {img:'img028.jpg', tint:'hiru', clock:'午後二時',   label:'昼下がり', sub:'午後二時'},
+  yu:   {img:'img025.jpg', tint:'yu',   clock:'午後五時',   label:'夕暮れ',   sub:'午後五時', glow:true},
+  yoru: {img:'img024.jpg', tint:'yoru', clock:'午後九時',   label:'閉店',     sub:'夜九時'},
+};
+async function scene(key, withBanner = true){
+  const s = SCENES[key], pic = $('#pic');
+  pic.classList.add('out'); await sleep(450);
+  pic.src = 'assets/' + s.img;
+  $('#bg').style.backgroundImage = `url(assets/${s.img})`;
+  $('#tint').className = s.tint;
+  $('#glow').classList.toggle('on', !!s.glow);
+  $('#clock').textContent = s.clock;
+  pic.onload = () => pic.classList.remove('out');
+  if (pic.complete) pic.classList.remove('out');
+  if (withBanner && s.label){
+    $('#banner b').textContent = s.label; $('#banner small').textContent = s.sub;
+    clear(); $('#banner').classList.add('on'); await sleep(1700); $('#banner').classList.remove('on'); await sleep(500);
+  }
+}
+
+// ── ことば ───────────────────────────
+let advance = null, typing = null;
+function clear(){ $('#who').textContent=''; $('#txt').textContent=''; $('#choices').innerHTML=''; $('#next').classList.remove('on'); }
+// say(誰, 文, 本文なら true)。誰が null なら地の文。
+function say(who, text, book = false){
+  clear();
+  const neko = who === 'おにゃんどん' || who === '？';
+  $('#who').textContent = who || ''; $('#who').className = neko ? 'neko' : '';
+  const t = $('#txt'); t.className = (neko ? 'neko ' : '') + (book ? 'book' : '');
+  return new Promise(res => {
+    let i = 0; const chars = [...text];
+    typing = () => { i = chars.length; t.textContent = text; };
+    const tick = () => {
+      if (i >= chars.length){ typing = null; $('#next').classList.add('on'); advance = res; return; }
+      t.textContent = chars.slice(0, ++i).join(''); setTimeout(tick, 34);
+    };
+    tick();
+  });
+}
+const N = (text, book) => say(null, text, book);         // 地の文
+function choose(opts){                                   // 選ぶ。押した番号を返す
+  $('#next').classList.remove('on');
+  return new Promise(res => {
+    const box = $('#choices'); box.innerHTML = '';
+    opts.forEach((o, i) => {
+      const b = document.createElement('button'); b.textContent = o; b.className = o.startsWith('［') ? 'act' : '';
+      b.onclick = e => { e.stopPropagation(); box.innerHTML = ''; res(i); };
+      box.appendChild(b);
+    });
+  });
+}
+function step(){ if (typing){ typing(); return; } if (advance){ const r = advance; advance = null; r(); } }
+$('#box').addEventListener('click', step);
+$('#scene').addEventListener('click', step);
+addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); step(); } });
+
+// ── コーヒーを淹れる（挽く → 蒸らす → 注ぐ）。0〜4 点を返す ──
+function brew(){
+  const sh = $('#brew'), svg = $('#bsvg'), bt = $('#bt'), bh = $('#bh'), bm = $('#bm'), bb = $('#bb');
+  const steps = sh.querySelectorAll('.steps i');
+  const setStep = n => steps.forEach((s, i) => s.classList.toggle('on', i < n));
+  clear(); sh.classList.add('on');
+  return new Promise(async done => {
+    let score = 0;
+
+    // 一　挽く
+    setStep(1); bt.textContent = '一　豆を挽く';
+    bh.textContent = 'ミルのハンドルを回す。';
+    let turns = 0; const need = 8;
+    const mill = a => svg.innerHTML =
+      `<rect x="34" y="52" width="52" height="56" fill="none" stroke="#efe8da" stroke-width="2"/>
+       <path d="M40 52 L46 30 H74 L80 52" fill="none" stroke="#efe8da" stroke-width="2"/>
+       <g transform="rotate(${a} 60 30)"><line x1="60" y1="30" x2="60" y2="8" stroke="#ED6D46" stroke-width="3"/><circle cx="60" cy="8" r="5" fill="#ED6D46"/></g>
+       <rect x="40" y="${104 - turns * 5}" width="40" height="${turns * 5}" fill="#6b4a33"/>`;
+    mill(0); bm.innerHTML = `0<small>/ ${need}</small>`; bb.textContent = 'ハンドルを回す'; bb.disabled = false;
+    await new Promise(r => { bb.onclick = () => {
+      turns++; mill(turns * 135); bm.innerHTML = `${turns}<small>/ ${need}</small>`;
+      if (turns >= need){ bb.onclick = null; r(); }
+    }; });
+    await sleep(300);
+
+    // 二　蒸らす（画面の 1 秒が 10 秒）
+    setStep(2); bt.textContent = '二　蒸らす';
+    bh.textContent = 'お湯を少しだけ入れて四十秒蒸らした。';
+    bh.classList.add('book');
+    const drip = r => svg.innerHTML =
+      `<path d="M28 34 H92 L68 78 H52 Z" fill="none" stroke="#efe8da" stroke-width="2"/>
+       <ellipse cx="60" cy="${40 - r * 8}" rx="${26 + r * 2}" ry="${6 + r * 9}" fill="#6b4a33" opacity=".9"/>
+       <rect x="40" y="86" width="40" height="26" fill="none" stroke="#efe8da" stroke-width="2"/>`;
+    drip(0); bm.innerHTML = `0<small>秒</small>`; bb.textContent = 'お湯を少しだけ入れる';
+    await new Promise(r => bb.onclick = r);
+    bb.textContent = 'ここで注ぎはじめる';
+    const secs = await new Promise(r => {
+      const t0 = performance.now(); let raf;
+      const loop = now => {
+        const s = Math.min(60, (now - t0) / 100);
+        drip(Math.min(1, s / 40)); bm.innerHTML = `${Math.floor(s)}<small>秒</small>`;
+        if (s >= 60){ bb.onclick = null; r(60); return; }
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      bb.onclick = () => { cancelAnimationFrame(raf); bb.onclick = null; r((performance.now() - t0) / 100); };
+    });
+    const d = Math.abs(secs - 40);
+    score += d <= 4 ? 2 : d <= 10 ? 1 : 0;
+    bh.classList.remove('book');
+    bh.textContent = d <= 4 ? '粉が、ふっくらと膨らんだ。' : secs < 40 ? 'すこし、早かったかもしれない。' : '蒸らしすぎたかもしれない。';
+    await sleep(1100);
+
+    // 三　注ぐ（押しているあいだ注ぐ。二杯分の線で止める）
+    setStep(3); bt.textContent = '三　注ぐ';
+    bh.textContent = 'そしてお湯を一定の速度で中央に垂らした。';
+    bh.classList.add('book');
+    const LO = 70, HI = 82;
+    const server = (f, pouring) => svg.innerHTML =
+      `${pouring ? '<line x1="60" y1="0" x2="60" y2="30" stroke="#efe8da" stroke-width="2" opacity=".7"/>' : ''}
+       <path d="M30 30 V108 H90 V30" fill="none" stroke="#efe8da" stroke-width="2"/>
+       <rect x="32" y="${108 - f * .78}" width="56" height="${f * .78}" fill="#5a3a24"/>
+       <line x1="26" y1="${108 - LO * .78}" x2="94" y2="${108 - LO * .78}" stroke="#ED6D46" stroke-dasharray="3 3"/>
+       <line x1="26" y1="${108 - HI * .78}" x2="94" y2="${108 - HI * .78}" stroke="#ED6D46" stroke-dasharray="3 3"/>
+       <text x="96" y="${108 - (LO + HI) / 2 * .78 + 4}" fill="#ED6D46" font-size="9">二杯</text>`;
+    let fill = 0; server(0); bm.innerHTML = `0<small>％</small>`; bb.textContent = '押しているあいだ注ぐ';
+    fill = await new Promise(r => {
+      let raf, last, on = false;
+      const loop = now => {
+        fill = Math.min(100, fill + (now - last) / 1000 * 24); last = now;
+        server(fill, true); bm.innerHTML = `${Math.floor(fill)}<small>％</small>`;
+        if (fill >= 100){ stop(); return; }
+        raf = requestAnimationFrame(loop);
+      };
+      const start = e => { e.preventDefault(); if (on) return; on = true; bb.classList.add('down'); last = performance.now(); raf = requestAnimationFrame(loop); };
+      const stop = () => { if (!on) return; on = false; bb.classList.remove('down'); cancelAnimationFrame(raf); server(fill);
+        bb.onpointerdown = bb.onpointerup = bb.onpointerleave = bb.onpointercancel = null; r(fill); };
+      bb.onclick = null;
+      bb.onpointerdown = start; bb.onpointerup = bb.onpointerleave = bb.onpointercancel = stop;
+    });
+    bh.classList.remove('book');
+    const inBand = fill >= LO && fill <= HI;
+    score += inBand ? 2 : (fill >= LO - 12 && fill < 100) ? 1 : 0;
+    bh.textContent = fill >= 100 ? 'あふれてしまった。' : inBand ? 'ちょうど、二杯分。' : fill < LO ? 'すこし、少ない。' : 'すこし、多い。';
+    bm.innerHTML = ['……', 'うすい', 'まずまず', '悪くない', '香りが、立った'][score];
+    bb.textContent = 'カップに注いで出す';
+    await new Promise(r => bb.onclick = r);
+    bb.onclick = null; sh.classList.remove('on'); await sleep(350);
+    done(score);
+  });
+}
+
+// ── 紙皿に盛る ──
+function feed(){
+  const sh = $('#feed'), fb = $('#fb'), items = [...sh.querySelectorAll('.items button')];
+  clear(); items.forEach(b => b.classList.remove('on')); fb.disabled = true; sh.classList.add('on');
+  return new Promise(res => {
+    items.forEach(b => b.onclick = () => { b.classList.toggle('on'); fb.disabled = !items.every(x => x.classList.contains('on')); });
+    fb.onclick = () => { sh.classList.remove('on'); setTimeout(res, 350); };
+  });
+}
+
+// ── なでる ──
+function pet(need = 6){
+  const p = $('#pet'); p.classList.add('on'); let n = 0, lastT = 0;
+  return new Promise(res => {
+    const hit = (e, isMove) => {
+      const now = performance.now(); if (isMove && now - lastT < 160) return; lastT = now;   // なでる動きだけ間引く。タップは毎回数える
+      const r = p.getBoundingClientRect(), g = document.createElement('span');
+      g.className = 'goro'; g.textContent = n % 2 ? 'ゴロ' : 'ゴロゴロ';
+      g.style.left = (e.clientX - r.left) + 'px'; g.style.top = (e.clientY - r.top) + 'px';
+      p.appendChild(g); setTimeout(() => g.remove(), 1400);
+      if (++n >= need){ p.onpointerdown = p.onpointermove = null; setTimeout(() => { p.classList.remove('on'); res(); }, 900); }
+    };
+    p.onpointerdown = e => hit(e, false);
+    p.onpointermove = e => { if (e.buttons || e.pointerType === 'touch') hit(e, true); };
+  });
+}
+
+// ── 一日の流れ ─────────────────────────
+const PARTS = {
+ asa: async () => {
+  await scene('asa');
+  await N('商店街の入り口近くの良い立地だけど、ひとっこひとり歩いていない商店街は猫が道路の真ん中で毛繕いをしていた。', true);
+  await N('当日朝十時にいよいよ開店となり、店前に立ってお客を待った。', true);
+  await N('やがて真っ黒に日焼けをした漁師のおじさんが店に入ってきた。', true);
+  await say('僕', '「いらっしゃいませ……」', true);
+  await say('漁師', '「焼酎をくれ」', true);
+  if (await choose(['「焼酎は置いてないんです」', '「コーヒーなら、ありますけど……」']) === 1){
+    await say('漁師', '「……」');
+    await say('僕', '「焼酎は置いてないんです」', true);
+  } else {
+    await say('僕', '「焼酎は置いてないんです」', true);
+  }
+  await say('漁師', '「なんだ、ないのか、じゃあビールをくれ」', true);
+  await say('僕', '「わかりました」', true);
+  await choose(['［自分が飲むために買っておいた瓶ビールを出す］']);
+  await scene('beer', false);
+  await N('一気に飲み干して五〇〇円を置いて出ていった。', true);
+  await N('初めてのお客のことは生涯覚えておこうと決めていたけれど、漁師で焼酎かあ……。', true);
+  await N('先が思いやられるなあ……。', true);
+
+ },
+ hiru: async () => {
+  await scene('hiru');
+  await N('背の高いＹさんと背の低いＥさんを僕は三崎のサイモンとガーファンクルと心で呼んでいた。', true);
+  await N('今日も、ふたりがやって来た。自信作のコーヒーを淹れてみよう。');
+  const s1 = await brew();
+  await N('ふたりの反応に期待をして見ていたけれど、これと言った反応はなかった。', true);
+  if (s1 >= 3) await N('コーヒーについての初めて感じた手応えは、まるで音楽の美しいコード進行を発見したような感触に似ていた。', true);
+  else await N('……もっと、うまく淹れられるはずだ。');
+
+ },
+ yu: async () => {
+  await scene('yu');
+  await N('ひと組のご夫婦が店にやって来た。', true);
+  await say('ご夫婦', '「ドリップコーヒーをふたつお願いします」', true);
+  await say('僕', '「承りました、少々お待ちください」', true);
+  for (;;){
+    const s2 = await brew();
+    await N('コーヒーの油分がまあるく小さな輪になって表面を泳いだ。', true);
+    await say('僕', '「どうぞごゆっくり」', true);
+    if (s2 >= 3){
+      await N('窓際の席で外を眺めていたご夫婦はコーヒーカップを手にとって薫りをかいで口に含んだ瞬間に驚いたような表情で見つめあった。', true);
+      await say('ご夫婦', '「こんなに美味しいコーヒーは初めてです」', true);
+      await N('僕はカウンターの中でしゃがみこんだ。', true);
+      await N('あとからあとから涙だけが溢れ出てきた。', true);
+      break;
+    }
+    await say('ご夫婦', '「ごちそうさまでした」');
+    await N('ふたりは静かに飲んで、窓の外の夕日を見ていた。……まだ、なにかが足りない。');
+    if (await choose(['［もう一度、淹れてみる］', '［今日はここまでにする］']) === 1) break;
+    await N('ちょうど、もうひと組のご夫婦が戸をあけた。');
+  }
+
+ },
+ yoru: async () => {
+  await scene('yoru');
+  await N('キッチンで出た食材の残りやコーヒーの豆のカスをビニール袋に詰めてゴミ箱に出して電気を消したら一日が終わる。', true);
+  await N('ゴミ箱の蓋を開けて生ごみを捨てようとしたら灯りの消えた路地から声が聞こえた。', true);
+  await say('？', '「なにかたべるものはありませんか」', true);
+  await N('振り返ると誰もいない……。そら耳か？', true);
+  await say('おにゃんどん', '「にさんにちたべていないのです、なにかたべるものはありませんか」', true);
+  await say('僕', '「えーっ！　おまえ今、しゃべったの？」', true);
+  await say('おにゃんどん', '「にゃー」', true);
+  await say('僕', '「ほんとにおまえしゃべれるのか？」', true);
+  await say('おにゃんどん', '「にゃー」', true);
+  await say('僕', '「にゃーじゃわかんないだろう、しゃべれるのか？」', true);
+  await say('おにゃんどん', '「じつはしゃべれます……」', true);
+  await say('僕', '「ちょっとまて、パンとかハムとかならあるから」', true);
+  await feed();
+  await say('おにゃんどん', '「おいしいです、にゃー」', true);
+  await N('あっという間にガジガジと食べ終えた。', true);
+
+  const asked = new Set();
+  for (;;){
+    const opts = [];
+    if (!asked.has(0)) opts.push([0, '「おにゃんどんは何歳だよ？」']);
+    if (!asked.has(1)) opts.push([1, '「しあわせな時もあるのかい？」']);
+    if (asked.has(1)) opts.push([2, '［あたまをなでる］']);
+    const k = opts[await choose(opts.map(o => o[1]))][0];
+    if (k === 0){ asked.add(0); await say('僕', '「おにゃんどんは何歳だよ？」', true); await say('おにゃんどん', '「いっさいはんです」', true); }
+    if (k === 1){ asked.add(1); await say('僕', '「しあわせな時もあるのかい？」', true);
+      await say('おにゃんどん', '「あたまをなでてもらったり、あごをなでてもらったり、ひざにのせてもらったりするとしあわせです」', true); }
+    if (k === 2) break;
+  }
+  clear(); $('#who').textContent = ''; $('#txt').textContent = '（絵の上をなでる）';
+  await pet();
+  await N('おまえらゴロゴロいうもんなあ。', true);
+  await N('夜の三崎銀座通り商店街は食べ終えて毛繕いをするおにゃんどんと僕だけだった。', true);
+  clear();
+  $('#end').classList.remove('hide');
+ },
+};
+// ?ba=hiru / yu / yoru でその場面から始める（確認用）
+const ORDER = Object.keys(PARTS);
+async function day(){
+  const from = Math.max(0, ORDER.indexOf(new URLSearchParams(location.search).get('ba')));
+  for (const k of ORDER.slice(from)) await PARTS[k]();
+}
+
+$('#go').onclick = () => { $('#start').classList.add('hide'); day(); };
+$('#again').onclick = () => { $('#end').classList.add('hide'); day(); };
+// はじめの画面の後ろに朝の絵を敷いておく
+$('#pic').src = 'assets/img015.jpg'; $('#bg').style.backgroundImage = 'url(assets/img015.jpg)'; $('#tint').className = 'asa';
+})();
+</script>
+</body>
+</html>
