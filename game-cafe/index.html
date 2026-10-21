@@ -142,6 +142,41 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #end .acts .big{background:var(--shu-deep);border-color:var(--shu-deep);color:#fff;text-decoration:none}
 #end .acts .btn{text-align:center}
 
+/* はじめの地図 */
+.mapscr{justify-content:flex-start;overflow:auto;padding:28px 16px calc(24px + env(safe-area-inset-bottom))}
+.mhead{text-align:center;margin-bottom:20px}
+.mhead .lede{margin:10px 0 0}
+.mgrid{display:grid;gap:20px;width:min(980px,100%);align-items:start}
+@media (min-width:820px){ .mgrid{grid-template-columns:1.1fr 1fr} }
+.mapbox{position:relative;width:100%;max-width:560px;justify-self:center;background:#f3ecdc;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.mapbox svg{display:block;width:100%;height:auto}
+.emap text{font-family:var(--mincho);fill:#3a332c}
+.emap .sea{font-size:13px;letter-spacing:.5em;fill:#8a7f70}
+.emap .nm{font-size:15px;font-weight:600;letter-spacing:.14em}
+.emap .sm{font-size:11px;letter-spacing:.12em;fill:#8a7f70}
+.spot{cursor:pointer}
+.spot .ring{fill:#fbf6ea;stroke:#3a332c;stroke-width:1.4;transition:stroke .2s,stroke-width .2s}
+.spot.on .ring,.spot:hover .ring{stroke:#ED6D46;stroke-width:3}
+.spot .halo{fill:none;stroke:#ED6D46;stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center;animation:halo 2.4s infinite}
+@keyframes halo{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.6)}}
+.spot.soon{opacity:.45}
+.spot.soon .halo{display:none}
+.mside{display:flex;flex-direction:column;gap:12px;text-align:left}
+.mside .note{font-size:12px;color:var(--dim);text-align:center;margin-top:-4px}
+.place{border:1px solid var(--line);padding:14px 16px;transition:border-color .2s;scroll-margin:16px}
+.place.on{border-color:var(--shu)}
+.place .no{font-size:11px;color:var(--shu);letter-spacing:.2em}
+.place h2{font-weight:600;font-size:17px;letter-spacing:.12em;margin:2px 0 6px}
+.place p{font-size:13px;color:var(--dim);line-height:1.8}
+.place .gm{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.place .gm button{padding:9px 14px;border:1px solid var(--shu);font-size:14px;letter-spacing:.08em}
+.place .gm button:hover{background:rgba(237,109,70,.12)}
+.place .gm button.done::after{content:"　✓";color:var(--shu)}
+.place .soon{display:inline-block;margin-top:10px;font-size:12px;color:var(--dim);border:1px dashed var(--line);padding:5px 10px;letter-spacing:.1em}
+.mattr{font-size:10px;color:var(--dim);margin-top:16px}
+.mattr a{color:inherit}
+#tomap{margin-left:14px;font-size:12px;letter-spacing:.12em;border:1px solid var(--line);padding:4px 10px;color:var(--dim)}
+
 @media (min-width:900px){ :root{--boxh:30vh} }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
@@ -157,8 +192,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
   <header id="hud">
     <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
-    <span class="t">黄色いテントの喫茶店</span>
+    <span class="t" id="place">黄色いテントの喫茶店</span>
     <span id="clock"></span>
+    <button id="tomap" type="button">地図</button>
   </header>
 
   <div id="banner"><b></b><small></small></div>
@@ -211,12 +247,45 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   </section>
 
   <!-- はじめ -->
-  <section id="start" class="cover">
-    <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
-    <p class="from">梶町よん『夕日の歌』より</p>
-    <h1>黄色いテントの喫茶店</h1>
-    <p class="lede">三崎銀座通り商店街の、ちいさな喫茶店。<br>朝の鯉の餌やりから閉店まで、ある一日をすごしてください。</p>
-    <button class="big" id="go">一日をはじめる</button>
+  <section id="start" class="cover mapscr">
+    <div class="mhead">
+      <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
+      <p class="from">梶町よん『夕日の歌』より</p>
+      <h1>あそびの地図</h1>
+      <p class="lede">三浦半島で、「僕」の毎日をすこしだけ。<br>行きたい場所を選んでください。</p>
+    </div>
+    <div class="mgrid">
+      <div class="mapbox" id="mapbox">
+        <svg class="emap" viewBox="0 0 400 490" role="img" aria-label="三浦半島の絵地図">
+          <defs><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="5"/></filter></defs>
+          <rect width="400" height="490" fill="#d8d2c1"/>
+          <g fill="none" stroke="#a99d86" stroke-width="1.2" stroke-linecap="round">
+            <path d="M28 190 q8 -6 16 0 q8 6 16 0"/><path d="M104 250 q8 -6 16 0 q8 6 16 0"/><path d="M22 300 q8 -6 16 0 q8 6 16 0"/>
+            <path d="M130 400 q8 -6 16 0 q8 6 16 0"/><path d="M60 430 q8 -6 16 0 q8 6 16 0"/><path d="M350 370 q8 -6 16 0 q8 6 16 0"/>
+            <path d="M330 440 q8 -6 16 0 q8 6 16 0"/><path d="M372 240 q6 -5 12 0"/>
+          </g>
+          <g filter="url(#rough)">
+            <path d="M-20 -20 H376 C362 40 350 80 356 110 C366 140 352 170 372 195 C392 215 400 240 398 262 C370 270 340 300 330 330 C320 360 330 380 318 405 C300 420 296 440 270 452 C252 462 232 458 222 446 C214 430 226 410 218 390 C212 360 222 330 214 300 C206 270 196 240 186 215 C176 190 170 160 158 140 C140 128 110 122 80 124 C50 126 24 118 -20 122 Z"
+              fill="#f8f2e4" stroke="#3a332c" stroke-width="1.6" stroke-linejoin="round"/>
+            <ellipse cx="246" cy="472" rx="26" ry="6" fill="#f8f2e4" stroke="#3a332c" stroke-width="1.4"/>
+            <path d="M71 85 C150 58 205 70 267 96 C300 160 272 240 248 304 C236 350 252 392 238 430" fill="none" stroke="#ED6D46" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+          </g>
+          <path d="M52 352 A30 30 0 0 1 112 352 Z" fill="#ED6D46"/>
+          <path d="M40 358 H124 M54 364 H110 M68 370 H96" stroke="#ED6D46" stroke-width="1.6" stroke-linecap="round"/>
+          <text class="sea" x="52" y="232">相模湾</text>
+          <text class="sea" x="338" y="300">東京湾</text>
+          <text class="sm" x="280" y="476">城ヶ島</text>
+          <g transform="translate(176 448)" fill="none" stroke="#3a332c" stroke-width="1.2" stroke-linejoin="round"><path d="M-14 0 H14 L9 6 H-9 Z" fill="#fbf6ea"/><path d="M0 0 V-14 L9 -4 H0"/></g>
+          <g transform="translate(34 452)"><path d="M0 -16 L5 0 L0 -3 L-5 0 Z" fill="#3a332c"/><text class="sm" x="0" y="12" text-anchor="middle" style="fill:#3a332c">北</text></g>
+          <g id="spots"></g>
+        </svg>
+      </div>
+      <div class="mside">
+        <button class="big" id="go">一日をとおして遊ぶ</button>
+        <p class="note">鎌倉山の鯉の餌やりから、三崎の喫茶店の閉店まで</p>
+        <div id="places"></div>
+      </div>
+    </div>
   </section>
 
   <!-- おわり -->
@@ -229,7 +298,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <p class="after">この一日は、小説『夕日の歌』の中の一日です。<br>店をはじめた「僕」の、その先の話は本で。</p>
     <div class="acts">
       <a class="big" href="https://kajimachiyon.com/" target="_blank" rel="noopener">『夕日の歌』のこと</a>
-      <button class="btn" id="again">もういちど、一日をはじめる</button>
+      <button class="btn" id="again">地図へもどる</button>
     </div>
   </section>
 </div>
@@ -246,8 +315,8 @@ if (new URLSearchParams(location.search).has('mark')) document.body.classList.ad
 
 // ── 場面 ─────────────────────────────
 const SCENES = {
-  koi:  {img:'img007.jpg', tint:'asa',  clock:'午前八時',   label:'鯉の餌やり', sub:'鎌倉山・午前八時'},
-  koi2: {img:'img008.jpg', tint:'asa',  clock:'午前八時'},
+  koi:  {img:'img007.jpg', tint:'asa',  clock:'午前八時',   label:'鯉の餌やり', sub:'鎌倉山・午前八時', place:'鎌倉山・御代川邸'},
+  koi2: {img:'img008.jpg', tint:'asa',  clock:'午前八時', place:'鎌倉山・御代川邸'},
   asa: {img:'img015.jpg', tint:'asa',  clock:'午前十時',   label:'開店',     sub:'朝十時'},
   beer: {img:'img021.jpg', tint:'asa',  clock:'午前十時'},
   hiru: {img:'img028.jpg', tint:'hiru', clock:'午後二時',   label:'昼下がり', sub:'午後二時'},
@@ -262,6 +331,7 @@ async function scene(key, withBanner = true){
   $('#tint').className = s.tint;
   $('#glow').classList.toggle('on', !!s.glow);
   $('#clock').textContent = s.clock;
+  $('#place').textContent = s.place || '黄色いテントの喫茶店';
   pic.onload = () => pic.classList.remove('out');
   if (pic.complete) pic.classList.remove('out');
   if (withBanner && s.label){
@@ -726,20 +796,92 @@ const PARTS = {
   await N('おまえらゴロゴロいうもんなあ。', true);
   await N('夜の三崎銀座通り商店街は食べ終えて毛繕いをするおにゃんどんと僕だけだった。', true);
   clear();
-  $('#end').classList.remove('hide');
  },
 };
-// ?ba=asa / hiru / yu / yoru でその場面から始める（確認用）
 const ORDER = Object.keys(PARTS);
-async function day(){
-  const from = Math.max(0, ORDER.indexOf(new URLSearchParams(location.search).get('ba')));
+async function day(from = 0){
   for (const k of ORDER.slice(from)) await PARTS[k]();
+  $('#end').classList.remove('hide');
 }
 
-$('#go').onclick = () => { $('#start').classList.add('hide'); day(); };
-$('#again').onclick = () => { $('#end').classList.add('hide'); day(); };
-// はじめの画面の後ろに朝の絵を敷いておく
-$('#pic').src = 'assets/img007.jpg'; $('#bg').style.backgroundImage = 'url(assets/img007.jpg)'; $('#tint').className = 'asa';
+// ── はじめの地図。場所を選ぶと、そこでのゲームだけを遊べる ──
+// xy は絵地図（viewBox 400×490）の上の位置。lb は名前を置く向き。soon は「近日」
+const PLACES = [
+  {key:'misaki', xy:[238, 430], icon:'cup', lb:'left', name:'三崎・銀座通り', text:'黄色いテントの喫茶店。夜には灯りの消えた路地で、しゃべる猫に出会う。',
+   games:[['yu', 'コーヒーを淹れる'], ['yoru', '夜の路地で、おにゃんどん']]},
+  {key:'kamakurayama', xy:[71, 85], icon:'koi', name:'鎌倉山', text:'御代川邸の池。一匹一五〇万円の鯉たちに、まんべんなく。', games:[['koi', '鯉の餌やり']]},
+  {key:'oppama', xy:[267, 96], icon:'car', name:'追浜', text:'工場の集積所で、新車を指定の場所へ。バックは禁止。', games:[], soon:true},
+  {key:'sakin', xy:[248, 304], icon:'kin', short:'川', name:'三浦半島の川', text:'川底の砂をすくって、砂金をさがす。', games:[], soon:true},
+];
+const played = new Set((() => { try { return JSON.parse(sessionStorage.getItem('played') || '[]'); } catch (e) { return []; } })());
+function markPlayed(id){ played.add(id); try { sessionStorage.setItem('played', JSON.stringify([...played])); } catch (e) {} }
+// 場所の絵（墨の線に朱をひとさし）
+const INK = '#3a332c', SHU = '#ED6D46', KAMI = '#fbf6ea';
+const ICONS = {
+  koi: `<path d="M-14 0 C-8 -8 8 -8 13 0 C8 8 -8 8 -14 0 Z" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/>
+        <path d="M-14 0 L-21 -6 L-19 0 L-21 6 Z" fill="${SHU}" stroke="${INK}" stroke-width="1"/>
+        <ellipse cx="1" cy="-1" rx="5" ry="3" fill="${SHU}"/><circle cx="8.5" cy="-1.5" r="1.2" fill="${INK}"/>`,
+  car: `<path d="M-16 4 V-2 L-9 -3 L-5 -9 H7 L11 -3 L16 -2 V4 Z" fill="${SHU}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M-3 -7 H6 L8 -3 H-5 Z" fill="${KAMI}" stroke="${INK}" stroke-width=".8"/>
+        <circle cx="-8" cy="5" r="3.6" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/><circle cx="8" cy="5" r="3.6" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/>`,
+  kin: `<ellipse cx="0" cy="4" rx="15" ry="6" fill="#c9b48f" stroke="${INK}" stroke-width="1.2"/><ellipse cx="0" cy="3" rx="9.5" ry="3.4" fill="#a8916b"/>
+        <path d="M-2 -13 l1.6 4.4 l4.4 1.6 l-4.4 1.6 l-1.6 4.4 l-1.6 -4.4 l-4.4 -1.6 l4.4 -1.6 Z" fill="#d6a943"/>
+        <circle cx="7" cy="-8" r="1.4" fill="#d6a943"/><circle cx="-9" cy="-4" r="1.1" fill="#d6a943"/>`,
+  cup: `<path d="M-15 -14 H13 L11 -9 H-13 Z" fill="#e8c34a" stroke="${INK}" stroke-width="1"/>
+        <path d="M-10 -5 H8 V0 C8 6 4 9 -1 9 C-6 9 -10 6 -10 0 Z" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/>
+        <path d="M8 -2 C14 -2 14 5 8 5" fill="none" stroke="${INK}" stroke-width="1.2"/>
+        <ellipse cx="-1" cy="10.5" rx="13" ry="2.4" fill="none" stroke="${INK}" stroke-width="1.1"/>
+        <path d="M-4 -6 C-6 -7 -3 -8 -4 -9" fill="none" stroke="${SHU}" stroke-width="1"/>`,
+};
+// 三崎にはおにゃんどんも（路地の猫の影）
+const NEKO = `<path d="M0 0 C0 -6 2 -9 5 -10 L5.5 -15 L8 -11 L10 -15 L10.5 -10 C13 -9 14 -5 13 0 Z M13 -1 C18 -2 19 -8 16 -10" fill="${INK}" stroke="${INK}" stroke-width=".8"/>`;
+function pick(i){
+  document.querySelectorAll('.spot').forEach(p => p.classList.toggle('on', +p.dataset.i === i));
+  document.querySelectorAll('.place').forEach(c => c.classList.toggle('on', +c.dataset.i === i));
+}
+function drawMap(){
+  $('#spots').innerHTML = PLACES.map((pl, i) => {
+    const [x, y] = pl.xy, short = pl.short || pl.name.split('・')[0];
+    const label = pl.lb === 'left'
+      ? `<text class="nm" x="-32" y="5" text-anchor="end">${short}</text>`
+      : `<text class="nm" x="0" y="42" text-anchor="middle">${short}</text>`;
+    return `<g class="spot${pl.soon ? ' soon' : ''}" data-i="${i}" transform="translate(${x} ${y})" role="button" tabindex="0" aria-label="${pl.name}">
+      <circle class="halo" r="22"/><circle class="ring" r="22"/>${ICONS[pl.icon]}
+      ${pl.key === 'misaki' ? `<g transform="translate(26 14)">${NEKO}</g>` : ''}
+      <circle cx="-17" cy="-17" r="8" fill="${pl.soon ? '#8a7f70' : SHU}"/><text x="-17" y="-13" text-anchor="middle" style="fill:#fff;font-size:11px;font-weight:600">${i + 1}</text>
+      ${label}${pl.soon ? `<text class="sm" x="0" y="${pl.lb === 'left' ? 34 : 56}" text-anchor="middle">近日</text>` : ''}
+    </g>`;
+  }).join('');
+  $('#spots').querySelectorAll('.spot').forEach(g => {
+    const go = () => { const i = +g.dataset.i; pick(i); document.querySelector(`.place[data-i="${i}"]`).scrollIntoView({behavior:'smooth', block:'nearest'}); };
+    g.onclick = go; g.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } };
+  });
+  $('#places').innerHTML = PLACES.map((pl, i) => `<div class="place" data-i="${i}">
+      <p class="no">${String(i + 1).padStart(2, '0')}</p><h2>${pl.name}</h2><p>${pl.text}</p>
+      ${pl.soon ? '<span class="soon">近日</span>' :
+        `<div class="gm">${pl.games.map(([id, label]) => `<button type="button" data-g="${id}" class="${played.has(id) ? 'done' : ''}">${label}</button>`).join('')}</div>`}
+    </div>`).join('');
+  $('#places').querySelectorAll('.place').forEach(c => c.onmouseenter = () => pick(+c.dataset.i));
+  $('#places').querySelectorAll('[data-g]').forEach(b => b.onclick = () => playOne(b.dataset.g));
+}
+function showMap(){
+  clear(); $('#end').classList.add('hide'); drawMap(); $('#start').classList.remove('hide');
+  $('#tomap').hidden = true;
+  $('#pic').src = 'assets/img007.jpg'; $('#bg').style.backgroundImage = 'url(assets/img007.jpg)'; $('#tint').className = 'asa';
+}
+async function playOne(id){
+  $('#start').classList.add('hide'); $('#tomap').hidden = false;
+  await PARTS[id](); markPlayed(id); showMap();
+}
+$('#go').onclick = async () => { $('#start').classList.add('hide'); $('#tomap').hidden = false; await day(); ORDER.forEach(markPlayed); };
+$('#again').onclick = showMap;
+// 遊んでいる途中で地図へ戻るときは、読み込みなおして始めの状態にする
+$('#tomap').onclick = () => { location.href = location.pathname + location.search.replace(/[?&]ba=[^&]*/, ''); };
+
+showMap();
+// ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）
+const ba = ORDER.indexOf(new URLSearchParams(location.search).get('ba'));
+if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
 })();
 </script>
 </body>
