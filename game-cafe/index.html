@@ -881,7 +881,9 @@ function makeYard(){
     ctx.stroke();
     // 停める場所への方角（車のまわりを回る朱の矢印と、のこりの距離）。吹雪の上に出す
     if (mode === 'drive' && !car.hidden){
-      const dx = tx - car.x, dy = ty - car.y, d = Math.hypot(dx, dy);
+      // 通路にいるあいだは、通路の出口を指す（距離は出口を回った道のり）
+      const inRoad = car.y > APR, wx = inRoad ? RXC : tx, wy = inRoad ? APR : ty;
+      const dx = wx - car.x, dy = wy - car.y, d = Math.hypot(dx, dy) + (inRoad ? Math.hypot(tx - RXC, ty - APR) : 0);
       if (d > 50){
         const ang = Math.atan2(dy, dx), sx = cx + (car.x - camX) * sc, sy = cy + (car.y - camY) * sc, R = 52 * sc;
         const ax = sx + Math.cos(ang) * R, ay = sy + Math.sin(ang) * R, pul = 1 + .08 * Math.sin(t * 5);
