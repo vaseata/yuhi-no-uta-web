@@ -8,6 +8,7 @@
 <!--
   『夕日の歌』の世界で遊ぶ1画面の試作（案A・2026-10-21）。
   朝の鎌倉山での鯉の餌やり、開店から夜の閉店まで、喫茶店の一日をすごし、最後に路地でおにゃんどんに出会う。
+  追浜の車両集積所（車を指定の場所へ。2026-11-13）は冬の別の日なので、地図から単独で遊ぶ。
   台詞と地の文のうち b:1 の行は本文そのまま（校了PDF 261013_aSongForDusk.pdf の表記で照合済み）。
   ?mark を付けて開くと、本文の行に朱の点が付く（著者・藤沢さんの確認用）。
 -->
@@ -112,6 +113,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .krow .big{flex:1}
 .krow .meter{min-width:5.5em}
 
+/* 追浜の車両集積所（上から見た絵を canvas に描く） */
+#yard{position:absolute;z-index:2;left:0;right:0;top:48px;bottom:0;display:none;overflow:hidden;touch-action:none;background:#2e3338}
+#yard.on{display:block}
+#yard canvas{position:absolute;inset:0;width:100%;height:100%}
+.slip{display:inline-flex;gap:12px;align-items:baseline;background:#f3ecdc;color:#1a1714;padding:6px 16px;font-family:var(--klee);transform:rotate(-1.2deg);margin-bottom:8px}
+.slip small{font-size:11px;color:#6b6157;letter-spacing:.1em}
+.slip b{font-size:20px;letter-spacing:.08em;font-weight:400}
+.drow{display:flex;gap:10px}
+.drow .dk{flex:none;width:68px;font-size:20px;padding:16px 0}
+.drow #dgo{flex:1;padding:16px}
+.drow2{display:flex;gap:10px;margin-top:10px}
+.drow2 .btn{text-align:center;padding:9px 8px;font-size:14px}
+.btn[disabled]{opacity:.35;pointer-events:none}
+#dpark:not([disabled]){border-color:var(--shu);background:rgba(237,109,70,.14)}
+
 /* なでる */
 #pet{position:absolute;z-index:4;inset:48px 0 var(--boxh,34vh) 0;display:none;cursor:pointer;touch-action:none}
 #pet.on{display:block}
@@ -161,6 +177,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 @keyframes halo{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.6)}}
 .spot.soon{opacity:.45}
 .spot.soon .halo{display:none}
+.spot.st.soon{opacity:1}
+.spot.st.soon .nm{fill:#8a7f70}
 .mside{display:flex;flex-direction:column;gap:12px;text-align:left}
 .mside .note{font-size:12px;color:var(--dim);text-align:center;margin-top:-4px}
 .place{border:1px solid var(--line);padding:14px 16px;transition:border-color .2s;scroll-margin:16px}
@@ -201,6 +219,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <div id="pet" aria-label="おにゃんどんをなでる"></div>
   <div id="pond" aria-label="鯉の池。押したところへ餌を投げる"><canvas></canvas></div>
 
+  <div id="yard" aria-label="追浜の車両集積所"><canvas></canvas></div>
+
   <section id="box" aria-live="polite">
     <div id="who"></div>
     <div id="txt"></div>
@@ -230,6 +250,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <div class="krow">
       <div class="meter" id="km"></div>
       <button class="big" id="kb">よーしよーし</button>
+    </div>
+  </section>
+
+  <!-- 車を指定の場所へ -->
+  <section id="drive" class="sheet" aria-label="車を指定の場所へ">
+    <div class="slip"><small>紙切れ</small><b id="dslip"></b></div>
+    <p class="hint" id="dh"></p>
+    <div class="drow">
+      <button class="big dk" id="dl" type="button" aria-label="ハンドルを左へ">◀</button>
+      <button class="big dk" id="dr" type="button" aria-label="ハンドルを右へ">▶</button>
+      <button class="big" id="dgo" type="button">アクセル</button>
+    </div>
+    <div class="drow2">
+      <button class="btn" id="dpark" type="button" disabled>ここに停める</button>
+      <button class="btn" id="dhand" type="button">右手を上げる</button>
     </div>
   </section>
 
@@ -662,6 +697,252 @@ function koiGame(){
   return result;
 }
 
+// ── 追浜の車両集積所。紙切れの番号のレーンへ車を運び、前の車のすぐうしろに停める。バックは禁止 ──
+// 上から見た絵。北（海のほう）が上。車は北向きにしか進めない（向きは左右およそ 60 度まで）。
+// drive() は {ok, tonari, parked, hand, gap, bumps} を返す
+function makeYard(){
+  const el = $('#yard'), cv = el.querySelector('canvas'), ctx = cv.getContext('2d'), sh = $('#drive');
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  const P = 38, S = 66, CL = 60, CW = 27, X0 = 80, NL = 16, WW = X0 * 2 + NL * P, TL = 7;   // レーンの幅・1台ぶんの長さ・車の大きさ。TL＝２８００番台
+  const APR = 460, RX0 = 115, RX1 = 235, RXC = 175, SY = 1380, FILL = 16;                  // レーン手前の広場の奥行き・通路・出発点
+  const E = [9, 12, 7, 11, 8, 13, 10, 11, 7, 12, 9, 13, 8, 11, 10, 12];                     // レーンごとの、手前の空きの台数
+  const BASE = [31, 67, 12, 45, 78, 23, 60, 54, 39, 71, 18, 50, 83, 27, 64, 42];            // いちばん奥の空きが何台目か
+  const COLS = ['#e9e9e6', '#d5d7d8', '#e9e9e6', '#c3c6c9', '#e9e9e6', '#8f959b', '#dcdcd8', '#3d4247'];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let W = 1, H = 1, pad = 0, sc = 1, mode = 'idle', night = 0, nightTo = 0, raf = 0, last = 0, t = 0, white = 0, whiteTo = 0, hand = false, bumps = 0, hintNow = '';
+  const car = {x:RXC, y:SY, a:0, v:0, hidden:false};
+  const key = {l:false, r:false, go:false};
+  const sup = {on:false, y:0, to:0};
+  const snow = Array.from({length:150}, () => ({x:Math.random(), y:Math.random(), v:.5 + Math.random() * .6, l:6 + Math.random() * 10}));
+  const fit = () => {
+    const r = el.getBoundingClientRect(); W = r.width; H = r.height;
+    cv.width = W * DPR; cv.height = H * DPR;
+    pad = (mode === 'drive' ? sh : $('#box')).offsetHeight;
+    sc = clamp(W / 440, .8, 1.5);
+  };
+  const laneX = j => X0 + (j + .5) * P;
+  const slotNo = (j, k) => BASE[j] + (E[j] - 1 - k);
+  const zen = n => String(n).replace(/\d/g, d => '０１２３４５６７８９'[d]);
+
+  // 通れないところ
+  function solid(px, py){
+    if (py > APR) return px < RX0 || px > RX1 || py > SY + 120;
+    if (py >= 0) return px < 46 || px > WW - 46;
+    const j = Math.floor((px - X0) / P); if (j < 0 || j >= NL) return true;
+    const k = Math.floor(-py / S); if (k < E[j]) return false; if (k >= E[j] + FILL) return true;
+    const ly = -py - k * S; return Math.abs(px - laneX(j)) <= CW / 2 && ly >= 3 && ly <= S - 3;
+  }
+  function blocked(x, y, a){
+    const c = Math.cos(a), s = Math.sin(a);
+    return [[-CW / 2, -CL / 2], [CW / 2, -CL / 2], [0, -CL / 2], [-CW / 2, CL / 2], [CW / 2, CL / 2], [-CW / 2, 0], [CW / 2, 0]]
+      .some(([dx, dy]) => solid(x + dx * c - dy * s, y + dx * s + dy * c));
+  }
+  const laneOf = () => clamp(Math.floor((car.x - X0) / P), 0, NL - 1);
+  const gapOf = j => (car.y - CL / 2) + E[j] * S + 3;
+
+  function rr(x, y, w, h, r){
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  // 車（前が上）。snowy は屋根に雪、me は自分の車（ライトとブレーキランプ）
+  function drawCar(x, y, a, col, o = {}){
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    if (o.me){
+      const g = ctx.createLinearGradient(0, -CL / 2, 0, -CL / 2 - 130);
+      g.addColorStop(0, `rgba(255,236,190,${.3 + night * .3})`); g.addColorStop(1, 'rgba(255,236,190,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-11, -CL / 2); ctx.lineTo(-34, -CL / 2 - 130); ctx.lineTo(34, -CL / 2 - 130); ctx.lineTo(11, -CL / 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(-CW / 2 + 3, -CL / 2 + 4, CW, CL, 7); ctx.fill();
+    ctx.fillStyle = col; rr(-CW / 2, -CL / 2, CW, CL, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(20,26,32,.82)';
+    ctx.beginPath(); ctx.moveTo(-CW / 2 + 3, -CL * .16); ctx.lineTo(-CW / 2 + 5, -CL * .28); ctx.lineTo(CW / 2 - 5, -CL * .28); ctx.lineTo(CW / 2 - 3, -CL * .16); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-CW / 2 + 4, CL * .24); ctx.lineTo(-CW / 2 + 5.5, CL * .33); ctx.lineTo(CW / 2 - 5.5, CL * .33); ctx.lineTo(CW / 2 - 4, CL * .24); ctx.fill();
+    ctx.fillStyle = o.snowy ? 'rgba(255,255,255,.62)' : 'rgba(255,255,255,.2)'; rr(-CW / 2 + 4, -CL * .14, CW - 8, CL * .36, 4); ctx.fill();
+    if (o.me){
+      ctx.fillStyle = '#fff3cf'; ctx.fillRect(-CW / 2 + 2, -CL / 2, 6, 2.5); ctx.fillRect(CW / 2 - 8, -CL / 2, 6, 2.5);
+      ctx.fillStyle = o.brake ? '#ff4a2e' : '#8a2a1e'; ctx.fillRect(-CW / 2 + 2, CL / 2 - 3, 7, 3); ctx.fillRect(CW / 2 - 9, CL / 2 - 3, 7, 3);
+      ctx.strokeStyle = 'rgba(237,109,70,.9)'; ctx.lineWidth = 1.4; rr(-CW / 2, -CL / 2, CW, CL, 7); ctx.stroke();
+    }
+    if (o.lamp){ ctx.fillStyle = Math.sin(t * 9) > 0 ? '#ffc93a' : '#8a6a18'; ctx.beginPath(); ctx.arc(0, -2, 4, 0, 7); ctx.fill(); }
+    ctx.restore();
+  }
+  // 気をつけをして、右手を高く上げた「僕」（黄色いヘルメット）
+  function drawMe(x, y){
+    ctx.save(); ctx.translate(x, y); ctx.lineCap = 'round';
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(2, 15, 9, 3.5, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#d9dee2'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-2, 2); ctx.lineTo(-2, 14); ctx.moveTo(3, 2); ctx.lineTo(3, 14); ctx.stroke();
+    ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(.5, -11); ctx.lineTo(.5, 2); ctx.stroke();
+    ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(5, -11); ctx.lineTo(8, -27 + Math.sin(t * 2.2) * .8); ctx.moveTo(-4.5, -10); ctx.lineTo(-5.5, 1); ctx.stroke();
+    ctx.fillStyle = '#e9c9a8'; ctx.beginPath(); ctx.arc(.5, -17, 4.6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.arc(.5, -18.5, 5.4, Math.PI, 0); ctx.fill(); ctx.fillRect(-6.5, -19, 14, 1.8);
+    ctx.restore();
+  }
+
+  function update(dt){
+    t += dt; night += clamp(nightTo - night, -dt * .5, dt * .5);
+    white += clamp(whiteTo - white, -dt * 2.2, dt * 2.2);
+    if (sup.on) sup.y += clamp(sup.to - sup.y, -150 * dt, 150 * dt);
+    if (mode !== 'drive') return;
+    const inLane = car.y < 40, vmax = inLane ? 130 : 215;
+    car.v = key.go ? Math.min(vmax, car.v + 150 * dt) : Math.max(0, car.v - 260 * dt);
+    if (car.v > vmax) car.v = Math.max(vmax, car.v - 300 * dt);
+    const st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
+    car.a = clamp(car.a + st * car.v / 95 * dt, -1.05, 1.05);
+    if (!st && inLane && car.v > 5) car.a *= Math.max(0, 1 - 1.6 * dt);          // レーンの中では、手を離すとまっすぐに戻る
+    const nx = car.x + Math.sin(car.a) * car.v * dt, ny = car.y - Math.cos(car.a) * car.v * dt;
+    if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; }
+    else if (!blocked(car.x, ny, 0) && Math.abs(car.a) < .5){ car.y = ny; car.a *= .8; }   // かるくこすったら、そのまま前へ
+    else { if (car.v > 45) bumps++; car.v = 0; }
+    // 停められるか・いまの案内
+    const j = laneOf(), inside = car.y + CL / 2 < 8, still = car.v < 3;
+    $('#dpark').disabled = !(inside && still);
+    const h = car.y > APR ? 'Ｄエリアは、この先の海岸に近いあたり。' : car.y > 30 ? 'レーンの番号は、入口の路面に書いてある。' : '前の車のすぐうしろに停める。間は三十センチ。';
+    if (h !== hintNow && !hintHold){ hintNow = h; $('#dh').textContent = h; }
+  }
+  let hintHold = 0;
+  function hint(text){ hintNow = text; $('#dh').textContent = text; hintHold = 1; setTimeout(() => hintHold = 0, 2600); }
+
+  function draw(){
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const vh = H - pad, cx = W / 2, cy = vh * .64;
+    const camX = W / sc >= WW ? WW / 2 : clamp(car.x, W / sc / 2, WW - W / sc / 2), camY = car.y;
+    const y0 = camY - cy / sc, y1 = camY + (H - cy) / sc, x0 = camX - cx / sc, x1 = camX + cx / sc;
+    ctx.fillStyle = '#2e3338'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-camX, -camY);
+    // 海
+    const top = -(Math.max(...E) + FILL) * S - 30;
+    if (y0 < top){ ctx.fillStyle = '#56636b'; ctx.fillRect(x0, y0, x1 - x0, top - y0); }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // 通路とエリアの字
+    ctx.fillStyle = '#262a2e'; ctx.fillRect(x0, APR, RX0 - x0, y1 - APR); ctx.fillRect(RX1, APR, x1 - RX1, y1 - APR);
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 2; ctx.setLineDash([26, 30]);
+    ctx.beginPath(); ctx.moveTo(RXC, APR + 10); ctx.lineTo(RXC, SY + 200); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.font = '600 54px sans-serif';
+    [['Ａ', SY - 150], ['Ｂ', 1010], ['Ｃ', 720]].forEach(([c, y]) => ctx.fillText(c, RXC + 32, y));
+    ctx.font = '600 90px sans-serif'; ctx.fillText('Ｄ', WW / 2, 300);
+    ctx.font = '600 15px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.4)';
+    ctx.fillText('↑ Ｄエリア', RXC + 4, 560); ctx.fillText('↑ Ｄエリア', RXC + 4, 900);
+    // 通路の両わきのブロック（新車がならぶ）
+    for (let r = Math.max(0, Math.floor((y0 - APR - 40) / S)); ; r++){
+      const y = APR + 40 + S * (r + .5); if (y - S > y1) break; if (r % 9 === 8) continue;
+      for (let c = 0; ; c++){
+        const xl = RX0 - 8 - P * (c + .5), xr = RX1 + 8 + P * (c + .5); if (xl < x0 - P && xr > x1 + P) break;
+        if (xl > x0 - P) drawCar(xl, y, 0, COLS[(r * 7 + c * 13) % COLS.length], {snowy:1});
+        if (xr < x1 + P) drawCar(xr, y, 0, COLS[(r * 11 + c * 5 + 3) % COLS.length], {snowy:1});
+      }
+    }
+    // レーン
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.6;
+    for (let j = 0; j <= NL; j++){ ctx.beginPath(); ctx.moveTo(X0 + j * P, 64); ctx.lineTo(X0 + j * P, top); ctx.stroke(); }
+    for (let j = 0; j < NL; j++){
+      const x = laneX(j); if (x < x0 - P || x > x1 + P) continue;
+      ctx.fillStyle = 'rgba(244,206,74,.85)'; ctx.fillRect(x - P / 2 + 3, 20, P - 6, 30);
+      ctx.fillStyle = '#23272b'; ctx.font = '700 13px sans-serif'; ctx.fillText(String(21 + j) + '00', x, 36);
+      ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.34)';
+      for (let k = 0; k < E[j]; k++){ const y = -(k + .5) * S; if (y > y0 - S && y < y1 + S) ctx.fillText(slotNo(j, k), x, y); }
+      for (let k = E[j]; k < E[j] + FILL; k++){
+        const y = -(k + .5) * S; if (y < y0 - S || y > y1 + S) continue;
+        drawCar(x, y, 0, COLS[(j * 5 + k * 3) % COLS.length], {snowy:1});
+      }
+    }
+    if (sup.on) drawCar(car.x, sup.y, 0, '#e8dfc4', {lamp:1});
+    if (!car.hidden) drawCar(car.x, car.y, car.a, '#f1f1ee', {me:1, brake:mode === 'drive' && !key.go});
+    if (hand) drawMe(car.x + (car.x > WW - 90 ? -CW / 2 - 14 : CW / 2 + 14), car.y + 4);
+    ctx.restore();
+    // 夜（集積所の明かり）
+    if (night > 0){
+      ctx.fillStyle = `rgba(6,10,24,${night * .62})`; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+      [[.18, .2], [.82, .32], [.3, .62], [.74, .78]].forEach(([u, v]) => {
+        const g = ctx.createRadialGradient(u * W, v * vh, 0, u * W, v * vh, Math.max(W, vh) * .3);
+        g.addColorStop(0, `rgba(255,214,150,${night * .3})`); g.addColorStop(1, 'rgba(255,214,150,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      });
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    // 吹雪で遠くがかすむ
+    const fr = Math.max(W, vh), fog = ctx.createRadialGradient(cx, cy - vh * .1, fr * .22, cx, cy - vh * .1, fr * .85);
+    const fc = night > .5 ? '18,22,34' : '196,204,210';
+    fog.addColorStop(0, `rgba(${fc},0)`); fog.addColorStop(1, `rgba(${fc},.82)`);
+    ctx.fillStyle = fog; ctx.fillRect(0, 0, W, H);
+    // 真横から粉雪
+    const gust = .07 + .06 * Math.sin(t * .6) + (hand ? .08 : 0);
+    ctx.fillStyle = `rgba(226,232,236,${gust * (1 - night * .6)})`; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.3; ctx.beginPath();
+    const wind = hand ? 1.5 : 1;
+    snow.forEach(p => { ctx.moveTo(p.x * W, p.y * H); ctx.lineTo(p.x * W + p.l * wind, p.y * H + p.l * .22); });
+    ctx.stroke();
+    if (white > 0){ ctx.fillStyle = `rgba(232,237,240,${white})`; ctx.fillRect(0, 0, W, H); }
+  }
+  const loop = now => {
+    const dt = Math.min(.05, (now - last) / 1000 || 0); last = now;
+    const wind = hand ? 1.5 : 1;
+    snow.forEach(p => { p.x += p.v * .75 * wind * dt; p.y += p.v * .16 * dt; if (p.x > 1.05){ p.x = -.05; p.y = Math.random(); } if (p.y > 1.02) p.y = -.02; });
+    update(dt); draw(); raf = requestAnimationFrame(loop);
+  };
+
+  // ボタンは押しているあいだだけ効く
+  const hold = (b, k) => {
+    const on = e => { e.preventDefault(); key[k] = true; b.classList.add('down'); try { b.setPointerCapture(e.pointerId); } catch (x) {} };
+    const off = () => { key[k] = false; b.classList.remove('down'); };
+    b.onpointerdown = on; b.onpointerup = b.onpointercancel = b.onlostpointercapture = off; b.oncontextmenu = e => e.preventDefault();
+  };
+  hold($('#dl'), 'l'); hold($('#dr'), 'r'); hold($('#dgo'), 'go');
+  const KEYS = {ArrowLeft:'l', a:'l', ArrowRight:'r', d:'r', ArrowUp:'go', w:'go'};
+  const kd = e => { if (mode === 'drive' && KEYS[e.key]){ e.preventDefault(); key[KEYS[e.key]] = true; } };
+  const ku = e => { if (KEYS[e.key]) key[KEYS[e.key]] = false; };
+  el.onclick = () => { if (mode !== 'drive') step(); };
+  if (new URLSearchParams(location.search).has('dbg')) window.__yard = {car, key, E, laneX, TL};   // 確認用
+
+  return {
+    zen,
+    open(){
+      $('#pic').classList.add('out'); $('#bg').style.backgroundImage = 'none'; $('#tint').className = ''; $('#glow').classList.remove('on');
+      el.classList.add('on'); mode = 'idle'; fit(); addEventListener('resize', fit); addEventListener('keydown', kd); addEventListener('keyup', ku);
+      last = performance.now(); raf = requestAnimationFrame(loop);
+    },
+    close(){ cancelAnimationFrame(raf); removeEventListener('resize', fit); removeEventListener('keydown', kd); removeEventListener('keyup', ku); el.classList.remove('on'); sh.classList.remove('on'); $('#box').style.visibility = ''; },
+    // n 台目（0 から）の紙切れで運転する
+    drive(n){
+      clear(); bumps = 0; hand = false; car.hidden = false; key.l = key.r = key.go = false;
+      $('#dslip').textContent = `Ａ${zen(1329 + n)} → Ｄ${zen(2854 + n)}`;
+      hintNow = ''; $('#dpark').disabled = true; sh.classList.add('on'); $('#box').style.visibility = 'hidden'; mode = 'drive'; fit();
+      return new Promise(res => {
+        const end = r => {
+          mode = 'idle'; car.v = 0; key.l = key.r = key.go = false; sh.classList.remove('on'); $('#box').style.visibility = '';
+          setTimeout(() => { fit(); res(r); }, 380);
+        };
+        $('#dpark').onclick = () => {
+          const j = laneOf(), gap = gapOf(j);
+          if (gap > 34){ hint('もっと前へ。前の車との間は、三十センチ。'); return; }
+          if (Math.abs(car.x - laneX(j)) > 12){ hint('レーンの線をまたいでいる。'); return; }
+          end({ok:j === TL, tonari:Math.abs(j - TL) === 1, parked:true, gap, bumps});
+        };
+        $('#dhand').onclick = () => end({ok:false, hand:true, parked:false, bumps});
+      });
+    },
+    wait(){ hand = true; },
+    // 監督車両がうしろから来る
+    supervisor(){
+      sup.on = true; sup.y = car.y + 520; sup.to = car.y + CL + 34;
+      return new Promise(res => { const iv = setInterval(() => { if (Math.abs(sup.y - sup.to) < 1){ clearInterval(iv); res(); } }, 100); });
+    },
+    // 社員さんが車を正しい場所へ。吹雪で白くなるあいだに入れかえる
+    async moved(){
+      whiteTo = 1; await sleep(650);
+      E[TL]--; BASE[TL]++; sup.on = false; hand = false; car.hidden = true; car.x = laneX(TL); car.y = -(E[TL] + .5) * S + 120; car.a = 0;
+      whiteTo = 0; await sleep(650);
+    },
+    async reset(){
+      whiteTo = 1; await sleep(600);
+      car.x = RXC; car.y = SY; car.a = 0; car.v = 0; car.hidden = false; hand = false;
+      whiteTo = 0; await sleep(500);
+    },
+    setNight(){ nightTo = 1; },
+  };
+}
+
 // ── 紙皿に盛る ──
 function feed(){
   const sh = $('#feed'), fb = $('#fb'), items = [...sh.querySelectorAll('.items button')];
@@ -797,8 +1078,67 @@ const PARTS = {
   await N('夜の三崎銀座通り商店街は食べ終えて毛繕いをするおにゃんどんと僕だけだった。', true);
   clear();
  },
+ // 追浜の車両集積所（冬。喫茶店の一日とは別の日なので、通しには入れない）
+ oppama: async () => {
+  const y = makeYard(), KAN = ['五十四', '五十五', '五十六', '五十七', '五十八', '五十九'];
+  $('#clock').textContent = '午前八時半'; $('#place').textContent = '追浜・車両集積所';
+  y.open(); clear();
+  $('#banner b').textContent = '車両集積所'; $('#banner small').textContent = '追浜・午前八時半';
+  $('#banner').classList.add('on'); await sleep(1700); $('#banner').classList.remove('on'); await sleep(500);
+  await say('社員', '「アシは車両を指定の場所に移動させるのが仕事だ、バックは禁止、停車位置を間違えた場合はその場に立って右手を上げて巡回している監督車両に合図を送ること、以上！」', true);
+  await N('僕は今日からアシなのか……。', true);
+  await N('真冬の追浜海岸には横殴りの粉雪が舞っていた。', true);
+  await N('社員さんから紙切れを渡された。そこには今から自分が運転する車両の位置と、それを移動させる場所の番号が記入されていた。', true);
+  await N('「Ａ１３２９→Ｄ２８５４」', true);
+  await N('むむむ、キーがないぞ……。そうかキーレスなのか……。', true);
+  await choose(['［ブレーキを踏んで、スタートボタンを押す］']);
+  await N('ブレーキを踏んでスタートボタンを押すとやっとエンジンがかかった。', true);
+  let done = false;
+  for (let n = 0; n < KAN.length; n++){
+    await N(`Ｄエリアの、２８００番台のレーン。その${KAN[n]}台目に、この車を停める。`);
+    const r = await y.drive(n);
+    if (r.ok){
+      await say('僕', '「よっしゃー、ミッション完了！」', true);
+      if (n === 0) await N('車を降りて両隣りをみる。……２８００番台。合っている。');
+      else await N('今度は間違えないで車を移動することができた。', true);
+      if (r.bumps) await N('途中で、こつん、と音がした気がしたけれど、きっと気のせいだろう。');
+      else if (r.gap <= 12) await N('前の車との間は、ちょうど三十センチ。');
+      done = true; break;
+    }
+    const book = r.parked && r.tonari;
+    if (r.parked){
+      await say('僕', '「よっしゃー、ミッション完了！」', true);
+      if (book) await N('車を降りて両隣りをみると、２８００番台は隣りのレーンだった。', true);
+      else await N('車を降りてレーンの番号をみると、２８００番台ではなかった。');
+    } else await N('……間違えた。');
+    await N('バックを禁止されているので、どうしようもない。', true);
+    y.wait();
+    await N('車のそばに立ち、気をつけをして右手を高く上げて社員さんの運転する監督車両が来るのを待った。', true);
+    if (n === 0){
+      await N('海っぺりの車両集積所は強風が吹き荒れて真横から粉雪が舞っていた。', true);
+      await N('直立不動で右手を高く上げてひたすら社員さんの車を待った。', true);
+    }
+    clear(); await y.supervisor();
+    await N('約十五分後に社員さんの車がやって来た。', true);
+    if (book) await say('僕', '「すみません……間違えて隣りに停めてしまいました……、ほんとうにすみません」', true);
+    else await say('僕', '「すみません……間違えてしまいました……、ほんとうにすみません」');
+    clear(); await y.moved();
+    if (book) await N('社員さんは無言で車をバックさせて隣りのレーンに移動させ、どこかへいってしまった。', true);
+    else await N('社員さんは無言で車を２８００番台のレーンに移動させ、どこかへいってしまった。');
+    await N('そのまた十分後にアシを乗せるワゴン車がやってきて僕は回収され次の車両が停まっている場所につれていかれた。', true);
+    if (n >= 1 && await choose(['［次の車両へ］', '［今日はここまでにする］']) === 1) break;
+    clear(); await y.reset();
+  }
+  y.setNight(); $('#clock').textContent = '午後八時';
+  await N('日が暮れて集積所全体に明かりが灯ってもまだ車両移動の仕事は続いた。', true);
+  await N('夜八時になって終了し、ヘルメットと名札を事務所に返した。', true);
+  await N('若い人にアシと呼ばれても構わない。', true);
+  await N('来週には今日の仕事の給料が貰えるんだから我慢しなきゃいけない。', true);
+  await say('僕', '「ああ、典子に会いたい…………」', true);
+  clear(); y.close();
+ },
 };
-const ORDER = Object.keys(PARTS);
+const ORDER = ['koi', 'asa', 'hiru', 'yu', 'yoru'];   // 「一日をとおして遊ぶ」の順（追浜は別の日）
 async function day(from = 0){
   for (const k of ORDER.slice(from)) await PARTS[k]();
   $('#end').classList.remove('hide');
@@ -807,11 +1147,11 @@ async function day(from = 0){
 // ── はじめの地図。場所を選ぶと、そこでのゲームだけを遊べる ──
 // xy は絵地図（viewBox 400×490）の上の位置。lb は名前を置く向き。soon は「近日」
 const PLACES = [
-  {key:'misaki', xy:[238, 430], icon:'cup', lb:'left', name:'三崎・銀座通り', text:'黄色いテントの喫茶店。夜には灯りの消えた路地で、しゃべる猫に出会う。',
+  {key:'misaki', xy:[238, 430], icon:'cup', lb:'left', line:4, st:[200, 400], sl:'right', sub:'コーヒー・おにゃんどん', name:'三崎・銀座通り', text:'黄色いテントの喫茶店。夜には灯りの消えた路地で、しゃべる猫に出会う。',
    games:[['yu', 'コーヒーを淹れる'], ['yoru', '夜の路地で、おにゃんどん']]},
-  {key:'kamakurayama', xy:[71, 85], icon:'koi', name:'鎌倉山', text:'御代川邸の池。一匹一五〇万円の鯉たちに、まんべんなく。', games:[['koi', '鯉の餌やり']]},
-  {key:'oppama', xy:[267, 96], icon:'car', name:'追浜', text:'工場の集積所で、新車を指定の場所へ。バックは禁止。', games:[], soon:true},
-  {key:'sakin', xy:[248, 304], icon:'kin', short:'川', name:'三浦半島の川', text:'川底の砂をすくって、砂金をさがす。', games:[], soon:true},
+  {key:'kamakurayama', xy:[71, 85], icon:'koi', line:1, st:[76, 150], sl:'below', name:'鎌倉山', text:'御代川邸の池。一匹一五〇万円の鯉たちに、まんべんなく。', games:[['koi', '鯉の餌やり']]},
+  {key:'oppama', xy:[267, 96], icon:'car', line:2, st:[316, 150], sl:'right', name:'追浜', text:'海っぺりの車両集積所で、新車を指定の場所へ。バックは禁止。', games:[['oppama', '車を指定の場所へ']]},
+  {key:'sakin', xy:[248, 304], icon:'kin', short:'川', line:3, st:[316, 284], sl:'left', name:'三浦半島の川', text:'川底の砂をすくって、砂金をさがす。', games:[], soon:true},
 ];
 const played = new Set((() => { try { return JSON.parse(sessionStorage.getItem('played') || '[]'); } catch (e) { return []; } })());
 function markPlayed(id){ played.add(id); try { sessionStorage.setItem('played', JSON.stringify([...played])); } catch (e) {} }
@@ -839,7 +1179,42 @@ function pick(i){
   document.querySelectorAll('.spot').forEach(p => p.classList.toggle('on', +p.dataset.i === i));
   document.querySelectorAll('.place').forEach(c => c.classList.toggle('on', +c.dataset.i === i));
 }
+// ── 路線図ふうの地図（?map=rosen）。地形を描かず、場所を1本の線（夕日の歌線）でつなぐ ──
+const ROSEN = new URLSearchParams(location.search).get('map') === 'rosen';
+const ROSEN_SVG = `<svg class="emap rosen" viewBox="0 0 400 490" role="img" aria-label="夕日の歌線の路線図">
+  <rect width="400" height="490" fill="#f3ecdc"/>
+  <g transform="translate(24 28)">
+    <rect width="132" height="34" fill="${SHU}"/>
+    <text x="66" y="23" text-anchor="middle" style="fill:#fff;font-size:17px;font-weight:600;letter-spacing:.2em">夕日の歌線</text>
+    <text x="142" y="15" class="sm">YUHI NO UTA LINE</text>
+    <text x="142" y="30" class="sm">鎌倉山 ─ 三崎</text>
+  </g>
+  <path d="M76 150 H316 V284 L200 400 V412" fill="none" stroke="${INK}" stroke-width="15" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M76 150 H316 V284 L200 400 V412" fill="none" stroke="${SHU}" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+  <g id="spots"></g>
+  <g transform="translate(24 462)">
+    <circle cx="7" cy="-4" r="6" fill="${KAMI}" stroke="${INK}" stroke-width="3"/><text x="20" y="0" class="sm" style="fill:${INK}">遊べる駅</text>
+    <circle cx="97" cy="-4" r="6" fill="${KAMI}" stroke="#8a7f70" stroke-width="3" stroke-dasharray="3 2"/><text x="110" y="0" class="sm">近日開業</text>
+  </g>
+</svg>`;
+function rosenSpot(pl, i){
+  const [x, y] = pl.st, end = pl.line === 4, short = pl.short || pl.name.split('・')[0];
+  const sub = pl.soon ? '近日開業' : pl.sub || pl.games.map(g => g[1]).join('・');
+  const code = `Y0${pl.line}`;
+  const tx = {left:-28, right:30}[pl.sl] || 0, ty = pl.sl === 'below' ? 40 : 2, anc = {left:'end', right:'start'}[pl.sl] || 'middle';
+  return `<g class="spot st${pl.soon ? ' soon' : ''}" data-i="${i}" transform="translate(${x} ${y})" role="button" tabindex="0" aria-label="${pl.name}">
+    <circle class="halo" r="${end ? 19 : 14}"/>
+    ${end ? `<circle r="19" fill="${KAMI}" stroke="${INK}" stroke-width="4"/>` : ''}
+    <circle class="ring" r="${end ? 11 : 13}" style="stroke-width:4;${pl.soon ? 'stroke:#8a7f70;stroke-dasharray:4 3' : ''}"/>
+    <g transform="translate(${pl.sl === 'left' ? -28 : -19} ${pl.sl === 'left' ? -36 : -40})"><rect width="38" height="16" fill="${pl.soon ? '#8a7f70' : INK}" ${pl.sl === 'left' ? 'x="-38"' : ''}/>
+      <text x="${pl.sl === 'left' ? -19 : 19}" y="12" text-anchor="middle" style="fill:#fff;font-size:10px;letter-spacing:.08em">${code}</text></g>
+    <text class="nm" x="${tx}" y="${ty}" text-anchor="${anc}" style="font-size:18px">${short}</text>
+    <text class="sm" x="${tx}" y="${ty + 18}" text-anchor="${anc}">${sub}</text>
+  </g>`;
+}
 function drawMap(){
+  if (ROSEN && !$('#mapbox .rosen')) $('#mapbox').innerHTML = ROSEN_SVG;
+  if (ROSEN){ $('#spots').innerHTML = PLACES.map(rosenSpot).join(''); } else
   $('#spots').innerHTML = PLACES.map((pl, i) => {
     const [x, y] = pl.xy, short = pl.short || pl.name.split('・')[0];
     const label = pl.lb === 'left'
@@ -857,7 +1232,7 @@ function drawMap(){
     g.onclick = go; g.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } };
   });
   $('#places').innerHTML = PLACES.map((pl, i) => `<div class="place" data-i="${i}">
-      <p class="no">${String(i + 1).padStart(2, '0')}</p><h2>${pl.name}</h2><p>${pl.text}</p>
+      <p class="no">${ROSEN ? `Y0${pl.line}` : String(i + 1).padStart(2, '0')}</p><h2>${pl.name}</h2><p>${pl.text}</p>
       ${pl.soon ? '<span class="soon">近日</span>' :
         `<div class="gm">${pl.games.map(([id, label]) => `<button type="button" data-g="${id}" class="${played.has(id) ? 'done' : ''}">${label}</button>`).join('')}</div>`}
     </div>`).join('');
@@ -879,9 +1254,10 @@ $('#again').onclick = showMap;
 $('#tomap').onclick = () => { location.href = location.pathname + location.search.replace(/[?&]ba=[^&]*/, ''); };
 
 showMap();
-// ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）
-const ba = ORDER.indexOf(new URLSearchParams(location.search).get('ba'));
-if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
+// ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）。?ba=oppama は追浜だけ
+const baKey = new URLSearchParams(location.search).get('ba'), ba = ORDER.indexOf(baKey);
+if (baKey === 'oppama') playOne('oppama');
+else if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
 })();
 </script>
 </body>
