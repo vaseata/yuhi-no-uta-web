@@ -128,6 +128,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .btn[disabled]{opacity:.35;pointer-events:none}
 #dpark:not([disabled]){border-color:var(--shu);background:rgba(237,109,70,.14)}
 
+/* 大楠山の沢で砂金採り（canvas に沢・フルイ網・パンニング皿・陶器を描く） */
+#kawa{position:absolute;z-index:2;left:0;right:0;top:48px;bottom:0;display:none;overflow:hidden;touch-action:none;background:#1c1f1a}
+#kawa.on{display:block}
+#kawa canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* 夜のイカ釣り（三崎港・城ヶ島） */
+#umi{position:absolute;z-index:2;left:0;right:0;top:48px;bottom:0;display:none;overflow:hidden;touch-action:none;background:#0b1220}
+#umi.on{display:block}
+#umi canvas{position:absolute;inset:0;width:100%;height:100%}
+#ib.atari{background:rgba(237,109,70,.45);animation:atari .18s 4 alternate}
+@keyframes atari{to{transform:translateX(3px)}}
+#ika .drow2 .btn{flex:1}
+#ika [hidden]{display:none!important}
+#ika .drow2 #il,#ika .drow2 #ir{flex:none;width:64px}
+
 /* なでる */
 #pet{position:absolute;z-index:4;inset:48px 0 var(--boxh,34vh) 0;display:none;cursor:pointer;touch-action:none}
 #pet.on{display:block}
@@ -220,6 +235,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <div id="pond" aria-label="鯉の池。押したところへ餌を投げる"><canvas></canvas></div>
 
   <div id="yard" aria-label="追浜の車両集積所"><canvas></canvas></div>
+  <div id="kawa" aria-label="大楠山の沢"><canvas></canvas></div>
+  <div id="umi" aria-label="夜の海"><canvas></canvas></div>
 
   <section id="box" aria-live="polite">
     <div id="who"></div>
@@ -268,6 +285,32 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     </div>
   </section>
 
+  <!-- 砂金採り -->
+  <section id="pan" class="sheet" aria-label="砂金採り">
+    <div class="steps"><i></i><i></i><i></i><i></i></div>
+    <h3 id="pt"></h3>
+    <p class="hint" id="pn"></p>
+    <div class="krow">
+      <div class="meter" id="pm"></div>
+      <button class="big" id="pb" type="button"></button>
+    </div>
+  </section>
+
+  <!-- 夜のイカ釣り -->
+  <section id="ika" class="sheet" aria-label="夜のイカ釣り">
+    <h3 id="it"></h3>
+    <p class="hint" id="ih"></p>
+    <div class="krow">
+      <div class="meter" id="im"></div>
+      <button class="big" id="ib" type="button"></button>
+    </div>
+    <div class="drow2">
+      <button class="btn" id="il" type="button" aria-label="左へ">◀</button>
+      <button class="btn" id="ix" type="button">巻いて回収</button>
+      <button class="btn" id="ir" type="button" aria-label="右へ">▶</button>
+    </div>
+  </section>
+
   <!-- 紙皿に盛る -->
   <section id="feed" class="sheet" aria-label="紙皿に盛る">
     <h3>紙皿に盛る</h3>
@@ -309,7 +352,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
           <path d="M40 358 H124 M54 364 H110 M68 370 H96" stroke="#ED6D46" stroke-width="1.6" stroke-linecap="round"/>
           <text class="sea" x="52" y="232">相模湾</text>
           <text class="sea" x="338" y="300">東京湾</text>
-          <text class="sm" x="280" y="476">城ヶ島</text>
           <g transform="translate(176 448)" fill="none" stroke="#3a332c" stroke-width="1.2" stroke-linejoin="round"><path d="M-14 0 H14 L9 6 H-9 Z" fill="#fbf6ea"/><path d="M0 0 V-14 L9 -4 H0"/></g>
           <g transform="translate(34 452)"><path d="M0 -16 L5 0 L0 -3 L-5 0 Z" fill="#3a332c"/><text class="sm" x="0" y="12" text-anchor="middle" style="fill:#3a332c">北</text></g>
           <g id="spots"></g>
@@ -1008,6 +1050,617 @@ function pet(need = 6){
 }
 
 // ── 一日の流れ ─────────────────────────
+
+// ── 大楠山の沢で砂金採り。掘る → ふるう → パンニング皿を回す → 光る粒を拾う。最後に家でバーナーで炙る ──
+// dig / furui / pan / pick / burner はそれぞれ Promise を返す。粒の数は見せずに持ち回す
+function makeKawa(){
+  const el = $('#kawa'), cv = el.querySelector('canvas'), ctx = cv.getContext('2d'), sh = $('#pan');
+  const pt = $('#pt'), pn = $('#pn'), pm = $('#pm'), pb = $('#pb'), steps = sh.querySelectorAll('.steps i');
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let W = 1, H = 1, vh = 1, mode = 'home', raf = 0, last = 0, t = 0, light = 0, lightTo = 0;
+  const fit = () => { const r = el.getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * DPR; cv.height = H * DPR; };
+  const setStep = n => steps.forEach((s, i) => s.classList.toggle('on', i < n));
+  const sheet = on => { sh.classList.toggle('on', on); $('#box').style.visibility = on ? 'hidden' : ''; };
+  let down = null, move = null, up = null;   // いまのゲームの指の受け口
+  el.onpointerdown = e => { if (!down) return; e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {} const r = el.getBoundingClientRect(); down(e.clientX - r.left, e.clientY - r.top); };
+  el.onpointermove = e => { if (!move) return; const r = el.getBoundingClientRect(); move(e.clientX - r.left, e.clientY - r.top); };
+  el.onpointerup = el.onpointercancel = () => { if (up) up(); };
+  el.onclick = () => { if (!down) step(); };
+
+  // 沢（上から見る。水は上から下へ流れる）
+  const cx = v => W / 2 + W * .06 * Math.sin(v * 4 + 1), hw = () => Math.min(W * .34, 230);
+  let stones = [], digs = [], bird = {x:-1, t:6};
+  const newRiver = () => {
+    stones = Array.from({length:6}, (_, i) => ({u:rnd(-.75, .75), v:.12 + i * .14 + rnd(-.04, .04), s:rnd(18, 30), off:0, dir:Math.random() < .5 ? -1 : 1, used:false, a:rnd(0, 3)}));
+    digs = [];
+  };
+  newRiver();
+  const toXY = (u, v) => [cx(v) + u * hw(), v * vh];
+
+  // フルイ網（横から見る）・パンニング皿（上から見る）
+  const net = {mud:1, ph:0, used:0, splash:0, spill:[]};
+  const pan = {w:0, prev:null, drag:false, sand:[], gold:[], lost:0, spray:[]};
+  const R = () => Math.min(W, vh) * .4;
+  let jar = 0, fly = [];
+  const burn = {heat:0, on:false, fl:[]};
+  if (new URLSearchParams(location.search).has('dbg')) window.__kawa = {pan, net, get mode(){ return mode; }};   // 確認用
+
+  function drawRiver(){
+    // 木々の岸
+    ctx.fillStyle = '#20301f'; ctx.fillRect(0, 0, W, vh);
+    for (let i = 0; i < 26; i++){
+      const x = (i * 97.3) % W, y = (i * 53.7 + 20) % vh, side = x < W / 2 ? -1 : 1;
+      if (Math.abs(x - cx(y / vh)) < hw() + 30) continue;
+      ctx.fillStyle = i % 3 ? '#2b4428' : '#355230'; ctx.beginPath(); ctx.arc(x, y, 34 + (i % 5) * 7, 0, 7); ctx.fill();
+    }
+    // 水の帯（川底の砂が透ける）
+    ctx.beginPath();
+    for (let y = 0; y <= vh; y += 10) ctx.lineTo(cx(y / vh) - hw(), y);
+    for (let y = vh; y >= 0; y -= 10) ctx.lineTo(cx(y / vh) + hw(), y);
+    ctx.closePath(); ctx.fillStyle = '#8f8a6c'; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(70,120,130,.45)'; ctx.fillRect(0, 0, W, vh);
+    // 掘ったあと
+    digs.forEach(d => { const [x, y] = toXY(d.u, d.v); ctx.fillStyle = 'rgba(60,52,36,.55)'; ctx.beginPath(); ctx.ellipse(x, y, 20, 13, 0, 0, 7); ctx.fill(); });
+    // 石（動かしたら、下の暗い砂が見える）
+    stones.forEach(s => {
+      const [x, y] = toXY(s.u, s.v);
+      if (s.off > 0){ ctx.fillStyle = 'rgba(58,50,34,.6)'; ctx.beginPath(); ctx.ellipse(x, y, s.s * .9, s.s * .6, s.a, 0, 7); ctx.fill(); }
+      const ox = x + s.dir * s.off * s.s * 2.2;
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(ox + 3, y + 4, s.s, s.s * .7, s.a, 0, 7); ctx.fill();
+      ctx.fillStyle = '#7d7b72'; ctx.beginPath(); ctx.ellipse(ox, y, s.s, s.s * .7, s.a, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(ox - s.s * .25, y - s.s * .2, s.s * .45, s.s * .25, s.a, 0, 7); ctx.fill();
+    });
+    // 流れ
+    ctx.strokeStyle = 'rgba(230,240,240,.35)'; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 40; i++){
+      const u = ((i * .37) % 1.6) - .8, v = ((i * .173 + t * .09) % 1.1) - .05, [x, y] = toXY(u, v);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(t * 2 + i) * 2, y + 16 + (i % 4) * 5); ctx.stroke();
+    }
+    ctx.restore();
+    // カワセミがときどき川の上を横切る
+    bird.t -= 1 / 60;
+    if (bird.t < 0 && bird.x < 0){ bird.x = 0; bird.y = rnd(.15, .6) * vh; }
+    if (bird.x >= 0){
+      bird.x += W / 110; const bx = bird.x, by = bird.y + Math.sin(bird.x / 30) * 6;
+      ctx.fillStyle = '#2f8fb3'; ctx.beginPath(); ctx.ellipse(bx, by, 9, 4, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#e07a3a'; ctx.beginPath(); ctx.ellipse(bx + 1, by + 2, 5, 2, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#1d1d1d'; ctx.beginPath(); ctx.moveTo(bx + 9, by - 1); ctx.lineTo(bx + 17, by); ctx.lineTo(bx + 9, by + 1); ctx.fill();
+      if (bird.x > W + 20){ bird.x = -1; bird.t = rnd(8, 16); }
+    }
+  }
+  function drawNet(){
+    const wy = vh * .58;
+    ctx.fillStyle = '#2a3a2a'; ctx.fillRect(0, 0, W, wy);
+    ctx.fillStyle = '#3f6a70'; ctx.fillRect(0, wy, W, vh - wy);
+    ctx.fillStyle = '#7d7660'; ctx.fillRect(0, vh * .9, W, vh * .1);
+    // 濁り（ゆすると水に泥が出る）
+    if (net.splash > 0){ const g = ctx.createRadialGradient(W / 2, wy + 30, 10, W / 2, wy + 30, W * .5);
+      g.addColorStop(0, `rgba(120,100,60,${net.splash * .6})`); g.addColorStop(1, 'rgba(120,100,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, wy, W, vh - wy); }
+    const a = Math.sin(net.ph) * .2, L = Math.min(W * .84, 560);
+    ctx.save(); ctx.translate(W / 2, wy + 6); ctx.rotate(a);
+    ctx.fillStyle = 'rgba(20,20,20,.25)'; ctx.fillRect(-L / 2, -6, L, 16);
+    // 網の中の砂と泥
+    ctx.fillStyle = '#6e5a3c'; ctx.beginPath(); ctx.ellipse(0, -8, L * (.18 + net.mud * .2), 8 + net.mud * 12, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#a89878'; ctx.beginPath(); ctx.ellipse(0, -4, L * .16, 6, 0, Math.PI, 0); ctx.fill();
+    // 枠と網目
+    ctx.strokeStyle = '#c9b48f'; ctx.lineWidth = 5; ctx.strokeRect(-L / 2, -4, L, 10);
+    ctx.strokeStyle = 'rgba(230,220,200,.45)'; ctx.lineWidth = 1;
+    for (let x = -L / 2; x < L / 2; x += 8){ ctx.beginPath(); ctx.moveTo(x, -4); ctx.lineTo(x + 4, 6); ctx.stroke(); }
+    // 両はしを抱える腕
+    ctx.fillStyle = '#e9c9a8'; ctx.fillRect(-L / 2 - 14, -10, 16, 10); ctx.fillRect(L / 2 - 2, -10, 16, 10);
+    ctx.restore();
+    ctx.font = '600 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#efe8da';
+    ctx.fillText('僕', W / 2 - L / 2, wy - 46 - Math.sin(net.ph) * L * .1); ctx.fillText('義男', W / 2 + L / 2, wy - 46 + Math.sin(net.ph) * L * .1);
+    // こぼれた砂
+    net.spill.forEach(p => { ctx.fillStyle = `rgba(168,152,120,${1 - p.t})`; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); });
+    // 拍子の目盛り（両はしの朱のところで、ゆする）
+    const gx = W / 2, gy = vh * .14, gw = Math.min(W * .7, 320);   // 朱の幅は |sin| > .75 のところ
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(gx - gw / 2, gy - 8, gw, 16);
+    ctx.fillStyle = 'rgba(237,109,70,.55)'; ctx.fillRect(gx - gw / 2, gy - 8, gw * .125, 16); ctx.fillRect(gx + gw / 2 - gw * .125, gy - 8, gw * .125, 16);
+    ctx.fillStyle = '#efe8da'; ctx.fillRect(gx + Math.sin(net.ph) * gw / 2 - 2, gy - 12, 4, 24);
+  }
+  function drawPan(withGlint){
+    const c = [W / 2, vh / 2], r = R();
+    ctx.fillStyle = '#3f6a70'; ctx.fillRect(0, 0, W, vh);
+    ctx.strokeStyle = 'rgba(230,240,240,.2)'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 18; i++){ const y = ((i * 47 + t * 30) % (vh + 40)) - 20; ctx.beginPath(); ctx.moveTo((i * 71) % W, y); ctx.lineTo((i * 71) % W + 10, y + 14); ctx.stroke(); }
+    // 皿（黒い樹脂のパンニング皿。底に溝）
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(c[0] + 6, c[1] + 8, r * 1.06, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1f2321'; ctx.beginPath(); ctx.arc(c[0], c[1], r * 1.06, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a302d'; ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 2;
+    [.35, .55, .75].forEach(k => { ctx.beginPath(); ctx.arc(c[0], c[1], r * k, 0, 7); ctx.stroke(); });
+    // 水の渦
+    ctx.strokeStyle = `rgba(200,230,230,${.12 + Math.min(.25, Math.abs(pan.w) * .02)})`; ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++){ const a0 = pan.prevA0 = (pan.rot || 0) + i * 1.05; ctx.beginPath(); ctx.arc(c[0], c[1], r * (.5 + i * .08), a0, a0 + .8); ctx.stroke(); }
+    pan.sand.forEach(p => { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(c[0] + Math.cos(p.a) * p.r * r, c[1] + Math.sin(p.a) * p.r * r, p.s, 0, 7); ctx.fill(); });
+    pan.gold.forEach(p => {
+      if (p.got) return;
+      const x = c[0] + Math.cos(p.a) * p.r * r, y = c[1] + Math.sin(p.a) * p.r * r;
+      ctx.fillStyle = '#f2c94a'; ctx.beginPath(); ctx.arc(x, y, 1.9, 0, 7); ctx.fill();
+      if (withGlint){ const k = Math.max(0, Math.sin(t * 3 + p.ph * 7)); if (k > .7){ const s = (k - .7) * 30;
+        ctx.strokeStyle = `rgba(255,240,180,${(k - .7) * 3})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - s, y); ctx.lineTo(x + s, y); ctx.moveTo(x, y - s); ctx.lineTo(x, y + s); ctx.stroke(); } }
+    });
+    pan.spray.forEach(p => { ctx.fillStyle = `rgba(200,190,160,${1 - p.t})`; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7); ctx.fill(); });
+    if (mode === 'pan' && sh.classList.contains('on')){   // 回す速さの目盛り
+      const gx = W / 2, gy = vh * .07, gw = Math.min(W * .7, 300), k = clamp(Math.abs(pan.w) / 20, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(gx - gw / 2, gy - 6, gw, 12);
+      ctx.fillStyle = 'rgba(237,109,70,.5)'; ctx.fillRect(gx - gw / 2 + gw * .2, gy - 6, gw * .35, 12);
+      ctx.fillStyle = '#efe8da'; ctx.fillRect(gx - gw / 2 + gw * k - 2, gy - 10, 4, 20);
+      ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(239,232,218,.7)';
+      ctx.fillText('ゆっくり', gx - gw / 2 + gw * .08, gy + 22); ctx.fillText('ちょうど', gx - gw / 2 + gw * .37, gy + 22); ctx.fillText('はやすぎ', gx + gw / 2 - gw * .15, gy + 22);
+    }
+    if (mode === 'pick'){   // 瓶
+      const jx = W - 46, jy = vh - 64;
+      ctx.strokeStyle = 'rgba(239,232,218,.8)'; ctx.lineWidth = 2; ctx.strokeRect(jx - 16, jy - 26, 32, 48); ctx.fillStyle = '#c9b48f'; ctx.fillRect(jx - 18, jy - 32, 36, 7);
+      ctx.fillStyle = '#f2c94a'; ctx.fillRect(jx - 14, jy + 20 - Math.min(44, jar * .4), 28, Math.min(44, jar * .4));
+      fly.forEach(f => { ctx.fillStyle = '#f2c94a'; ctx.beginPath(); ctx.arc(f.x + (jx - f.x) * f.t, f.y + (jy - f.y) * f.t - Math.sin(f.t * 3.1) * 40, 2.2, 0, 7); ctx.fill(); });
+    }
+  }
+  function drawHome(){
+    const g = ctx.createRadialGradient(W / 2, vh * .3, 10, W / 2, vh * .3, Math.max(W, vh) * .8);
+    g.addColorStop(0, '#4a3a2a'); g.addColorStop(1, '#16110d'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, vh);
+    if (mode !== 'burner') return;
+    const c = [W / 2, vh * .55], r = Math.min(W, vh) * .3;
+    ctx.fillStyle = '#2a2018'; ctx.fillRect(0, c[1] + r * .5, W, vh);
+    if (burn.on){   // 青い炎
+      for (let i = 0; i < 3; i++){ ctx.fillStyle = `rgba(${90 + i * 40},${140 + i * 30},255,${.35 + i * .15})`;
+        ctx.beginPath(); ctx.moveTo(c[0] - 12 + i * 4, c[1] + r * .9); ctx.quadraticCurveTo(c[0] + Math.sin(t * 30 + i) * 6, c[1] + r * .2, c[0] + 12 - i * 4, c[1] + r * .9); ctx.fill(); }
+    }
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(c[0] - 10, c[1] + r * .88, 20, r * .5);
+    // 陶器（熱くなると赤らむ）
+    const hk = burn.heat / 1600;
+    ctx.fillStyle = `rgb(${232 + hk * 23},${226 - hk * 90},${214 - hk * 150})`; ctx.beginPath(); ctx.ellipse(c[0], c[1], r, r * .42, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(c[0], c[1], r * .8, r * .32, 0, 0, 7); ctx.stroke();
+    burn.fl.forEach(p => { ctx.fillStyle = '#f2c94a'; ctx.beginPath(); ctx.arc(c[0] + p.x * r * .7, c[1] + p.y * r * .28, 2, 0, 7); ctx.fill(); });
+    if (burn.blob > 0){ ctx.fillStyle = '#f5cf55'; ctx.beginPath(); ctx.ellipse(c[0], c[1], burn.blob, burn.blob * .6, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,230,.7)'; ctx.beginPath(); ctx.ellipse(c[0] - burn.blob * .3, c[1] - burn.blob * .2, burn.blob * .3, burn.blob * .15, 0, 0, 7); ctx.fill(); }
+  }
+  // 朝 → 昼 → 夕 → 日没
+  function drawLight(){
+    const L = [[200, 220, 240, .12], [0, 0, 0, 0], [237, 120, 60, .24], [20, 22, 48, .55]];
+    const i = Math.floor(light), f = light - i, a = L[i], b = L[Math.min(3, i + 1)];
+    const m = k => a[k] + (b[k] - a[k]) * f;
+    ctx.fillStyle = `rgba(${m(0)},${m(1)},${m(2)},${m(3)})`; ctx.fillRect(0, 0, W, vh);
+  }
+
+  function update(dt){
+    t += dt; light += clamp(lightTo - light, -dt * .6, dt * .6);
+    stones.forEach(s => { if (s.moving) s.off = Math.min(1, s.off + dt * 2.5); });
+    net.splash = Math.max(0, net.splash - dt * .8);
+    net.spill.forEach(p => { p.t += dt * 1.4; p.y += 60 * dt; }); net.spill = net.spill.filter(p => p.t < 1);
+    if (mode === 'furui') net.ph += dt * Math.PI / .75;
+    if (mode === 'pan' || mode === 'pick'){
+      if (!pan.drag) pan.w *= Math.exp(-1.6 * dt);
+      pan.rot = (pan.rot || 0) + pan.w * dt;
+      const w2 = pan.w * pan.w, c = [W / 2, vh / 2], r = R();
+      pan.sand.forEach(p => { p.a += pan.w * dt * (1 - .3 * p.r); p.r = Math.max(0, p.r + (w2 * .004 * p.k - .02) * dt); });
+      pan.sand = pan.sand.filter(p => { if (p.r < 1) return true; pan.spray.push({x:c[0] + Math.cos(p.a) * r, y:c[1] + Math.sin(p.a) * r, t:0}); return false; });
+      pan.gold.forEach(p => { if (p.got) return; p.a += pan.w * dt * (1 - .5 * p.r); const nr = p.r + (w2 * .0002 - .03) * dt; p.r = nr < p.r ? Math.max(nr, Math.min(p.r, p.r0)) : nr; });   // 重い粒は底の溝（r0）まで沈む
+      pan.gold = pan.gold.filter(p => { if (p.got || p.r < 1) return true; pan.lost++; pan.spray.push({x:c[0] + Math.cos(p.a) * r, y:c[1] + Math.sin(p.a) * r, t:0}); return false; });
+      pan.spray.forEach(p => p.t += dt * 2); pan.spray = pan.spray.filter(p => p.t < 1);
+      fly.forEach(f => f.t += dt * 2.4); const n = fly.filter(f => f.t >= 1).length; if (n){ jar += n; fly = fly.filter(f => f.t < 1); }
+    }
+    if (mode === 'burner'){
+      burn.heat = clamp(burn.heat + (burn.on ? 420 : -260) * dt, 0, 1600);
+      if (burn.heat > 1000) burn.fl.forEach(p => { const k = Math.min(1, dt * (burn.heat - 1000) / 300); p.x -= p.x * k; p.y -= p.y * k; });
+      const near = burn.fl.filter(p => Math.hypot(p.x, p.y) < .04);
+      if (near.length){ burn.blob = Math.min(burn.max, (burn.blob || 0) + near.length * .25); burn.fl = burn.fl.filter(p => Math.hypot(p.x, p.y) >= .04); }
+    }
+  }
+  function draw(){
+    vh = H - (sh.classList.contains('on') ? sh.offsetHeight : $('#box').offsetHeight);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, vh); ctx.clip();
+    if (mode === 'river' || mode === 'dig') drawRiver();
+    else if (mode === 'furui') drawNet();
+    else if (mode === 'pan' || mode === 'pick') drawPan(mode === 'pick' || pan.sand.length < 30);
+    else drawHome();
+    if (mode !== 'home' && mode !== 'burner') drawLight();
+    ctx.restore();
+    ctx.fillStyle = '#0e0d0c'; ctx.fillRect(0, vh, W, H - vh);
+  }
+  const loop = now => { const dt = Math.min(.05, (now - last) / 1000 || 0); last = now; update(dt); draw(); raf = requestAnimationFrame(loop); };
+
+  return {
+    open(m = 'home'){ $('#pic').classList.add('out'); $('#bg').style.backgroundImage = 'none'; $('#tint').className = ''; $('#glow').classList.remove('on');
+      mode = m; el.classList.add('on'); fit(); addEventListener('resize', fit); last = performance.now(); raf = requestAnimationFrame(loop); },
+    close(){ cancelAnimationFrame(raf); removeEventListener('resize', fit); el.classList.remove('on'); sheet(false); },
+    show(m){ mode = m; if (m === 'river') newRiver(); },
+    setLight(n){ lightTo = n; },
+    // 一　掘る。3回すくう。石を動かした下は砂金が多い。粒の数を返す
+    dig(hint){
+      mode = 'dig'; setStep(1); pt.textContent = '一　川砂を掘る'; pn.textContent = hint || '川の中を押して、スコップで砂を掘る。三杯すくってフルイ網へ。';
+      pb.textContent = '川を押して、掘る'; pb.disabled = true; sheet(true);
+      let n = 0, gold = 0; pm.innerHTML = `0<small>/ 3杯</small>`;
+      return new Promise(res => {
+        down = (x, y) => {
+          const v = y / vh, u = (x - cx(v)) / hw();
+          if (Math.abs(u) > 1){ pn.textContent = '川の中を掘る。'; return; }
+          const s = stones.find(s => { const [sx, sy] = toXY(s.u, s.v); return Math.hypot(x - sx, y - sy) < s.s * 1.2; });
+          if (s && !s.used){ s.used = true; s.moving = true; gold += Math.round(rnd(24, 38)); pn.textContent = '石を動かして、その下の砂を掘りおこした。'; }
+          else { digs.push({u, v}); gold += Math.round(rnd(3, 8)); pn.textContent = 'ざくっ。'; }
+          n++; pm.innerHTML = `${n}<small>/ 3杯</small>`;
+          if (n >= 3){ down = null; setTimeout(() => res(gold), 700); }
+        };
+      });
+    },
+    // 二　ふるう。義男と二人で網をゆする。端に来たときに押すと泥が抜ける。外すと砂がこぼれる
+    furui(gold){
+      mode = 'furui'; setStep(2); pt.textContent = '二　フルイ網をゆする'; pn.textContent = '網が朱のところに来たときに「ゆする」。義男と息を合わせる。';
+      net.mud = 1; net.ph = 0; net.used = 0; pb.textContent = 'ゆする'; pb.disabled = false; sheet(true);
+      const meter = () => pm.innerHTML = `${Math.round(net.mud * 100)}<small>％ 泥</small>`; meter();
+      return new Promise(res => {
+        pb.onclick = () => {
+          const sd = Math.sin(net.ph), side = sd > 0 ? 1 : -1, k = Math.floor((net.ph + Math.PI / 2) / Math.PI);
+          if (Math.abs(sd) > .75 && net.used !== k){ net.used = k; net.mud = Math.max(0, net.mud - .17); net.splash = 1; pn.textContent = side < 0 ? 'せーの。' : '「いいすね、兄貴」'; }
+          else { net.mud = Math.max(0, net.mud - .03); gold -= Math.ceil(gold * .05);
+            for (let i = 0; i < 8; i++) net.spill.push({x:W / 2 + side * Math.min(W * .42, 280) + rnd(-8, 8), y:vh * .58 - 10, t:rnd(0, .3)});
+            pn.textContent = 'ばしゃっ。網のはしから、砂がこぼれた。'; }
+          meter();
+          if (net.mud <= 0){ pb.onclick = null; pb.disabled = true; setTimeout(() => res(gold), 600); }
+        };
+      });
+    },
+    // 三　パンニング皿を回す。ちょうどの速さで軽い砂だけが縁から流れ出る。速すぎると砂金も飛ぶ
+    pan(gold){
+      mode = 'pan'; setStep(3); pt.textContent = '三　パンニング皿を回す'; pn.textContent = '皿の上を指でぐるぐるなぞって、水の中で回す。速さは朱のところ。';
+      pan.w = 0; pan.lost = 0; pan.spray = []; jar = 0; fly = [];
+      pan.sand = Array.from({length:140}, () => ({a:rnd(0, 6.3), r:Math.sqrt(Math.random()) * .85, k:rnd(.5, 1.5), s:rnd(1.4, 2.6), c:['#a89878', '#8e7f62', '#bfb194', '#6e624c'][Math.floor(Math.random() * 4)]}));
+      pan.gold = Array.from({length:gold}, () => ({a:rnd(0, 6.3), r:Math.sqrt(Math.random()) * .7, r0:rnd(.08, .62), ph:Math.random()}));
+      pb.textContent = '皿を、指で回す'; pb.disabled = true; sheet(true);
+      const ang = (x, y) => Math.atan2(y - vh / 2, x - W / 2);
+      down = (x, y) => { pan.drag = true; pan.prev = [ang(x, y), performance.now()]; };
+      move = (x, y) => {
+        if (!pan.drag) return;
+        const a = ang(x, y), now = performance.now(), [pa, pt0] = pan.prev; let d = a - pa;
+        if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+        const dt = Math.max(.008, (now - pt0) / 1000);
+        pan.w = clamp(pan.w * .8 + (d / dt) * .2, -24, 24); pan.prev = [a, now];
+      };
+      up = () => { pan.drag = false; };
+      return new Promise(res => {
+        const iv = setInterval(() => {
+          const w = Math.abs(pan.w);
+          pm.innerHTML = `${Math.round(100 - pan.sand.length / 1.4)}<small>％ 流した</small>`;
+          if (w > 13 && pan.drag) pn.textContent = '速すぎる。砂金まで飛んでしまう。';
+          else if (w > 4 && pan.drag) pn.textContent = '泥や砂が、縁から流れていく。';
+          if (pan.sand.length < 8){ clearInterval(iv); down = move = up = null; pan.drag = false; res({gold:pan.gold.length, lost:pan.lost}); }
+        }, 120);
+      });
+    },
+    // 四　光る粒を拾う。指でなぞると、近くの粒が瓶へ
+    pick(){
+      mode = 'pick'; setStep(4); pt.textContent = '四　光る粒を拾う'; pn.textContent = 'キラッと光る粒を、指でなぞって瓶へ。';
+      const all = pan.gold.length; pb.textContent = '瓶にしまう'; pb.disabled = false; sheet(true);
+      const meter = () => pm.innerHTML = `${jar + fly.length}<small>粒</small>`; meter();
+      const grab = (x, y) => {
+        const c = [W / 2, vh / 2], r = R();
+        pan.gold.forEach(p => { if (p.got) return; const gx = c[0] + Math.cos(p.a) * p.r * r, gy = c[1] + Math.sin(p.a) * p.r * r;
+          if (Math.hypot(gx - x, gy - y) < 18){ p.got = true; fly.push({x:gx, y:gy, t:0}); } });
+        meter();
+      };
+      return new Promise(res => {
+        const fin = () => { down = move = up = null; pb.onclick = null; clearInterval(iv); setTimeout(() => { const n = jar + fly.length; sheet(false); res(n); }, 500); };
+        let drag = false;
+        down = (x, y) => { drag = true; grab(x, y); }; move = (x, y) => { if (drag) grab(x, y); }; up = () => drag = false;
+        pb.onclick = fin;
+        const iv = setInterval(() => { meter(); if (all && pan.gold.every(p => p.got) && !fly.length) fin(); }, 200);
+      });
+    },
+    // バーナーで炙る。押しているあいだ温度が上がり、一六〇〇度で粒がひとつの塊に
+    burner(total){
+      mode = 'burner'; setStep(0); pt.textContent = 'バーナーで炙る'; pn.textContent = '押しているあいだ、陶器をバーナーで炙る。';
+      const n = Math.min(160, Math.max(12, Math.round(total / 2)));
+      burn.heat = 0; burn.blob = 0; burn.max = 6 + Math.sqrt(total) * 1.6;
+      burn.fl = Array.from({length:n}, () => { const a = rnd(0, 6.3), r = Math.sqrt(Math.random()); return {x:Math.cos(a) * r, y:Math.sin(a) * r}; });
+      pb.textContent = 'バーナーで炙る'; pb.disabled = false; sheet(true);
+      return new Promise(res => {
+        const on = e => { e.preventDefault(); burn.on = true; pb.classList.add('down'); };
+        const off = () => { burn.on = false; pb.classList.remove('down'); };
+        pb.onclick = null; pb.onpointerdown = on; pb.onpointerup = pb.onpointerleave = pb.onpointercancel = off;
+        const iv = setInterval(() => {
+          pm.innerHTML = `${Math.round(burn.heat)}<small>度</small>`;
+          if (!burn.fl.length && burn.heat > 1500){ clearInterval(iv); off(); pb.onpointerdown = pb.onpointerup = pb.onpointerleave = pb.onpointercancel = null; setTimeout(() => { sheet(false); res(); }, 700); }
+        }, 100);
+      });
+    },
+  };
+}
+
+// ── 夜のイカ釣り。投げる → しゃくる → アタリで合わせる → 巻く（イカが走るときは止める）。
+//    一晩め（港）は足元の黒い影を懐中電灯で追う。二晩め（城ヶ島）は海底の光と、浮かび上がる球体 ──
+function makeUmi(){
+  const el = $('#umi'), cv = el.querySelector('canvas'), ctx = cv.getContext('2d'), sh = $('#ika');
+  const it = $('#it'), ih = $('#ih'), im = $('#im'), ib = $('#ib'), ix = $('#ix'), il = $('#il'), ir = $('#ir');
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let W = 1, H = 1, vh = 1, raf = 0, last = 0, t = 0, view = 'side', night = 'minato', dawn = 0, dawnTo = 0;
+  const fit = () => { const r = el.getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * DPR; cv.height = H * DPR; };
+  const sheet = on => { sh.classList.toggle('on', on); $('#box').style.visibility = on ? 'hidden' : ''; };
+  el.onclick = () => { if (!sh.classList.contains('on')) step(); };
+  // 押しているあいだだけ効くボタン
+  const held = {ib:false, ix:false, il:false, ir:false};
+  [[ib, 'ib'], [ix, 'ix'], [il, 'il'], [ir, 'ir']].forEach(([b, k]) => {
+    b.onpointerdown = e => { e.preventDefault(); held[k] = true; b.classList.add('down'); try { b.setPointerCapture(e.pointerId); } catch (x) {} if (b.onpress) b.onpress(); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => { if (!held[k]) return; held[k] = false; b.classList.remove('down'); if (b.onrelease) b.onrelease(); };
+    b.oncontextmenu = e => e.preventDefault();
+  });
+
+  // 横から見た海の寸法
+  const G = () => ({sy:vh * .34, fy:vh * .93, px:W * .17, tip:[W * .25, vh * .15], far:W * .95});
+  // 釣りの状態
+  const f = {st:'ready', pow:0, powDir:1, lx:0, ly:0, vx:0, vy:0, jerk:0, atari:0, twitch:0, hooked:null, stress:0, jet:0, jetIn:2, count:0, tries:0, lit:0, msg:''};
+  let squids = [], inks = [], splash = [];
+  const light = {on:false, x:0, rot:0, spin:0, y:0, stage:0, st:0, r:0, sx:0, sy:0, trail:[]};
+  const joe = {stage:0, st:0, x:0, y:0, sx:0, kx:0, ky:0, bx:0, lit:0};
+  if (new URLSearchParams(location.search).has('dbg')) window.__umi = {f, joe, light};   // 確認用
+  const spawn = (n, near) => { const g = G(); for (let i = 0; i < n; i++){
+    const x = near != null ? near + rnd(-80, 80) : rnd(g.px + 80, g.far), y = rnd(g.sy + 50, g.fy - 30);
+    squids.push({x, y, a:Math.random() < .5 ? 0 : Math.PI, want:0, bite:0, gone:0, s:rnd(.8, 1.2)}); } };
+
+  function drawSky(){
+    const g = G(), sk = ctx.createLinearGradient(0, 0, 0, g.sy);
+    const d = dawn;
+    sk.addColorStop(0, `rgb(${10 + d * 40},${16 + d * 40},${36 + d * 60})`); sk.addColorStop(1, `rgb(${22 + d * 140},${30 + d * 80},${58 + d * 50})`);
+    ctx.fillStyle = sk; ctx.fillRect(0, 0, W, g.sy);
+    if (night === 'minato'){ ctx.fillStyle = '#f3ecd8'; ctx.beginPath(); ctx.arc(W * .8, vh * .1, 16, 0, 7); ctx.fill();
+      const mg = ctx.createRadialGradient(W * .8, vh * .1, 10, W * .8, vh * .1, 70); mg.addColorStop(0, 'rgba(243,236,216,.35)'); mg.addColorStop(1, 'rgba(243,236,216,0)'); ctx.fillStyle = mg; ctx.fillRect(0, 0, W, g.sy); }
+    else { ctx.fillStyle = 'rgba(30,34,40,.9)'; ctx.beginPath(); ctx.moveTo(W * .55, g.sy); ctx.lineTo(W * .7, g.sy - 14); ctx.lineTo(W * .9, g.sy - 9); ctx.lineTo(W, g.sy - 16); ctx.lineTo(W, g.sy); ctx.fill(); }
+    for (let i = 0; i < 30; i++){ ctx.fillStyle = `rgba(255,255,255,${(.25 + .2 * Math.sin(t + i)) * (1 - d)})`; ctx.fillRect((i * 137) % W, (i * 59) % (g.sy * .8), 1.4, 1.4); }
+  }
+  function drawSea(){
+    const g = G();
+    const sg = ctx.createLinearGradient(0, g.sy, 0, g.fy); sg.addColorStop(0, '#16304a'); sg.addColorStop(1, '#070d18');
+    ctx.fillStyle = sg; ctx.fillRect(0, g.sy, W, vh - g.sy);
+    // 満月の大潮でうねる面と、月の道
+    ctx.strokeStyle = 'rgba(220,230,240,.5)'; ctx.lineWidth = 1.4; ctx.beginPath();
+    for (let x = 0; x <= W; x += 8){ const y = g.sy + Math.sin(x / 40 + t * 1.3) * 3 + (light.stage === 3 || light.stage === 4 ? bulge(x) : 0); x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+    if (night === 'minato') for (let i = 0; i < 14; i++){ ctx.fillStyle = `rgba(243,236,216,${.25 + .2 * Math.sin(t * 2 + i)})`; ctx.fillRect(W * .8 - 30 + Math.sin(i * 7 + t) * 26, g.sy + 6 + i * 9, 26 - i, 1.6); }
+    // 海底
+    ctx.fillStyle = '#1b1a16'; ctx.beginPath(); ctx.moveTo(g.px, g.fy);
+    for (let x = g.px; x <= W; x += 20) ctx.lineTo(x, g.fy + Math.sin(x / 50) * 5); ctx.lineTo(W, vh); ctx.lineTo(g.px, vh); ctx.fill();
+  }
+  const bulge = x => { const k = light.stage === 3 ? Math.min(1, light.st / 1.5) : 1; return -k * 26 * Math.exp(-Math.pow((x - light.x) / 70, 2)); };
+  function drawPier(){
+    const g = G();
+    ctx.fillStyle = '#4a4a46'; ctx.fillRect(0, g.sy - 22, g.px, vh); ctx.fillStyle = '#5c5c57'; ctx.fillRect(0, g.sy - 26, g.px, 6);
+    // 釣り人（僕）と竿
+    const bx = g.px * .55, by = g.sy - 26;
+    ctx.fillStyle = '#0d0f12';
+    ctx.fillRect(bx - 6, by - 34, 12, 34); ctx.beginPath(); ctx.arc(bx, by - 42, 7, 0, 7); ctx.fill();
+    if (night === 'jogashima') [[-g.px * .35, .9], [-g.px * .15, 1.05]].forEach(([dx, s]) => { ctx.fillRect(bx + dx - 5, by - 30 * s, 10, 30 * s); ctx.beginPath(); ctx.arc(bx + dx, by - 37 * s, 6 * s, 0, 7); ctx.fill(); });
+    const tw = f.twitch > 0 ? Math.sin(t * 70) * 5 : 0, tip = [g.tip[0], g.tip[1] + tw + (f.st === 'fight' ? 18 : 0)];
+    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(bx + 6, by - 24);
+    ctx.quadraticCurveTo((bx + tip[0]) / 2, (by - 24 + tip[1]) / 2 - (f.st === 'fight' ? -10 : 8), tip[0], tip[1]); ctx.stroke();
+    ctx.fillStyle = f.twitch > 0 ? '#ED6D46' : '#d8d0c0'; ctx.beginPath(); ctx.arc(tip[0], tip[1], 2.5, 0, 7); ctx.fill();
+    return tip;
+  }
+  function drawSquid(q){
+    ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a); ctx.scale(q.s, q.s);
+    const glow = q.want > 0 ? .9 : .55;
+    ctx.fillStyle = `rgba(236,226,214,${glow})`;
+    ctx.beginPath(); ctx.moveTo(18, 0); ctx.quadraticCurveTo(10, -8, -6, -5); ctx.lineTo(-6, 5); ctx.quadraticCurveTo(10, 8, 18, 0); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(24, -6); ctx.lineTo(22, 0); ctx.lineTo(24, 6); ctx.fill();
+    ctx.strokeStyle = `rgba(236,226,214,${glow})`; ctx.lineWidth = 1.2;
+    for (let i = -2; i <= 2; i++){ ctx.beginPath(); ctx.moveTo(-6, i * 2); ctx.quadraticCurveTo(-14, i * 3 + Math.sin(t * 6 + i) * 2, -20, i * 4); ctx.stroke(); }
+    ctx.fillStyle = '#ED6D46'; ctx.beginPath(); ctx.arc(-3, -2, 1.3, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function drawSide(){
+    const g = G();
+    drawSky(); drawSea();
+    // 海底の光（城ヶ島）
+    if (light.on && light.stage < 4){
+      const lx = light.x, ly = light.y, pul = .6 + .4 * Math.max(0, Math.sin(t * 5)), rr = 14 + light.stage * 10;
+      const lg = ctx.createRadialGradient(lx, ly, 2, lx, ly, 70 + light.stage * 30); lg.addColorStop(0, `rgba(255,236,190,${.55 * pul})`); lg.addColorStop(1, 'rgba(255,236,190,0)');
+      ctx.fillStyle = lg; ctx.fillRect(lx - 200, ly - 200, 400, 400);
+      if (light.spin > 0){ ctx.strokeStyle = `rgba(255,240,200,${.4 + light.spin * .1})`; ctx.lineWidth = 1.6;
+        for (let i = 0; i < 3 + light.stage * 3; i++){ const a = light.rot + i * 2.1; ctx.beginPath(); ctx.ellipse(lx, ly, rr + i * 3, (rr + i * 3) * .35, 0, a, a + 1.6); ctx.stroke(); } }
+      ctx.fillStyle = '#fff6dc'; ctx.beginPath(); ctx.arc(lx, ly, 3 + light.stage, 0, 7); ctx.fill();
+    }
+    squids.forEach(q => { if (q !== f.hooked) drawSquid(q); });
+    // 墨
+    inks.forEach(k => { ctx.fillStyle = `rgba(5,6,8,${.6 * (1 - k.t)})`; ctx.beginPath(); ctx.arc(k.x, k.y, 8 + k.t * 26, 0, 7); ctx.fill(); });
+    const tip = drawPier();
+    // 糸と餌木
+    if (f.st !== 'ready' && f.st !== 'charge' && f.st !== 'idle'){
+      ctx.strokeStyle = 'rgba(230,230,230,.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tip[0], tip[1]);
+      ctx.quadraticCurveTo((tip[0] + f.lx) / 2, Math.max(tip[1], f.ly) - (f.st === 'fight' ? 0 : -20), f.lx, f.ly); ctx.stroke();
+      ctx.save(); ctx.translate(f.lx, f.ly); ctx.rotate(f.vy < 0 ? -.6 : .3);
+      ctx.fillStyle = '#ED6D46'; ctx.beginPath(); ctx.ellipse(0, 0, 9, 3.5, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#f2d16b'; ctx.fillRect(-3, -1, 6, 2); ctx.restore();
+      if (f.hooked){ f.hooked.x = f.lx + 22; f.hooked.y = f.ly + 2; f.hooked.a = 0; drawSquid(f.hooked); }
+    } else { ctx.fillStyle = '#ED6D46'; ctx.beginPath(); ctx.ellipse(tip[0], tip[1] + 14, 7, 3, 1.4, 0, 7); ctx.fill(); }
+    splash.forEach(p => { ctx.fillStyle = `rgba(220,235,245,${1 - p.t})`; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 7); ctx.fill(); });
+    // 投げる強さ
+    if (f.st === 'charge'){ const bw = Math.min(W * .6, 260), bx = W / 2 - bw / 2, by = vh * .06;
+      ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(bx, by, bw, 12); ctx.fillStyle = '#ED6D46'; ctx.fillRect(bx, by, bw * f.pow, 12);
+      if (light.on){ const k = (light.x - g.px - 40) / (g.far - g.px - 40); ctx.fillStyle = '#fff6dc'; ctx.fillRect(bx + bw * k - 1.5, by - 5, 3, 22); } }
+    // 球体
+    if (light.stage >= 4){
+      const r = light.r, x = light.sx, y = light.sy;
+      light.trail.forEach((p, i) => { ctx.fillStyle = `rgba(255,214,150,${p.a})`; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + p.a * 3, 0, 7); ctx.fill(); });
+      const og = ctx.createRadialGradient(x, y, r * .2, x, y, r * 2.4); og.addColorStop(0, 'rgba(255,240,210,.9)'); og.addColorStop(.4, 'rgba(255,190,120,.35)'); og.addColorStop(1, 'rgba(255,190,120,0)');
+      ctx.fillStyle = og; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff3d6'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(237,109,70,.7)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++){ const a = light.rot + i * 1.25; ctx.beginPath(); ctx.ellipse(x, y, r * 1.02, r * .3, 0, a, a + 1.2); ctx.stroke(); }
+      if (light.stage === 4){ ctx.strokeStyle = 'rgba(220,235,245,.5)'; ctx.lineWidth = 1.2;
+        for (let i = 1; i < 5; i++){ ctx.beginPath(); ctx.ellipse(light.x, g.sy + 4, i * 26 + (t * 30 % 26), i * 5, 0, 0, 7); ctx.stroke(); } }
+    }
+  }
+  // 上から見た堤防のへち（一晩め、黒い影を追う）
+  function drawTop(){
+    const ey = vh * .78;
+    ctx.fillStyle = '#0f2236'; ctx.fillRect(0, 0, W, ey);
+    for (let i = 0; i < 40; i++){ ctx.fillStyle = `rgba(243,236,216,${.08 + .08 * Math.sin(t * 2 + i)})`; ctx.fillRect((i * 83 + t * 8) % W, (i * 41) % ey, 18, 1.2); }
+    ctx.fillStyle = '#4a4a46'; ctx.fillRect(0, ey, W, vh - ey); ctx.fillStyle = '#5c5c57'; ctx.fillRect(0, ey, W, 5);
+    // 懐中電灯の明かり
+    const bx = joe.bx;
+    if (joe.stage < 2){ const lg = ctx.createRadialGradient(bx, ey - 50, 5, bx, ey - 50, 80); lg.addColorStop(0, 'rgba(255,240,200,.5)'); lg.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(bx - 8, ey + 30); ctx.lineTo(bx - 90, ey - 140); ctx.lineTo(bx + 90, ey - 140); ctx.closePath(); ctx.fill(); }
+    // 僕（上から）と玉網
+    ctx.fillStyle = '#0d0f12'; ctx.beginPath(); ctx.arc(bx, ey + 30, 10, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#8a8a80'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx + 8, ey + 26); ctx.lineTo(bx + 36, ey - 6); ctx.stroke(); ctx.beginPath(); ctx.arc(bx + 40, ey - 12, 9, 0, 7); ctx.stroke();
+    if (joe.stage === 0){   // 畳一畳ほどの黒い影
+      ctx.fillStyle = 'rgba(2,4,8,.75)'; ctx.beginPath(); ctx.ellipse(joe.x, joe.y, 62, 26, Math.sin(t) * .15, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(joe.x - 60 * Math.sign(joe.vx || 1), joe.y, 18, 8, 0, 0, 7); ctx.fill();
+      // 影を照らしている度合い
+      const bw = Math.min(W * .6, 260); ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(W / 2 - bw / 2, 14, bw, 10); ctx.fillStyle = '#ED6D46'; ctx.fillRect(W / 2 - bw / 2, 14, bw * joe.lit, 10);
+    }
+    if (joe.stage >= 1){   // 噴水と、浮かび上がる大男
+      const k = Math.min(1, joe.st / 1.2);
+      for (let i = 0; i < 24; i++){ const a = i / 24 * 6.28, rr = (joe.st * 60 + i * 3) % 70; ctx.fillStyle = `rgba(220,235,245,${(1 - rr / 70) * .8})`; ctx.beginPath(); ctx.arc(joe.x + Math.cos(a) * rr, joe.y + Math.sin(a) * rr * .6, 2.2, 0, 7); ctx.fill(); }
+      if (joe.stage >= 2){
+        const x = joe.x, y = joe.y;
+        ctx.fillStyle = '#05070a'; ctx.beginPath(); ctx.ellipse(x, y + 6, 34 * k, 16 * k, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y - 4, 15 * k, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(x - 6, y - 6, 3, 2); ctx.fillRect(x + 3, y - 6, 3, 2);
+        // 右手のタコ
+        const hx = joe.stage >= 3 ? joe.kx : x + 34, hy = joe.stage >= 3 ? joe.ky : y - 26;
+        if (joe.stage < 3){ ctx.strokeStyle = '#05070a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x + 22, y); ctx.lineTo(hx, hy + 6); ctx.stroke(); }
+        if (joe.stage < 5){ ctx.fillStyle = '#b5523a'; ctx.beginPath(); ctx.arc(hx, hy - 6, 9, 0, 7); ctx.fill(); ctx.strokeStyle = '#b5523a'; ctx.lineWidth = 2.4;
+          for (let i = 0; i < 6; i++){ ctx.beginPath(); ctx.moveTo(hx - 6 + i * 2.4, hy); ctx.quadraticCurveTo(hx - 10 + i * 4 + Math.sin(t * 8 + i) * 4, hy + 8, hx - 8 + i * 3.2, hy + 14); ctx.stroke(); } }
+      }
+    }
+    if (joe.stage === 4){   // 城ヶ島のほうへ、すごいスピードで
+      ctx.strokeStyle = 'rgba(220,235,245,.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(joe.sx, joe.y); ctx.lineTo(joe.x - 20, joe.y - 6); ctx.moveTo(joe.sx, joe.y + 12); ctx.lineTo(joe.x - 20, joe.y + 6); ctx.stroke();
+      ctx.fillStyle = '#05070a'; ctx.beginPath(); ctx.ellipse(joe.x, joe.y, 26, 9, 0, 0, 7); ctx.fill();
+      ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(239,232,218,.6)'; ctx.textAlign = 'right'; ctx.fillText('城ヶ島 →', W - 12, 24);
+    }
+    if (joe.stage === 5){ ctx.fillStyle = '#b5523a'; const hx = bx + 20, hy = ey + 18; ctx.beginPath(); ctx.arc(hx, hy, 9, 0, 7); ctx.fill(); ctx.strokeStyle = '#b5523a'; ctx.lineWidth = 2.4;
+      for (let i = 0; i < 6; i++){ ctx.beginPath(); ctx.moveTo(hx - 6 + i * 2.4, hy + 6); ctx.quadraticCurveTo(hx - 10 + i * 4 + Math.sin(t * 8 + i) * 5, hy + 12, hx - 8 + i * 3.2, hy + 18); ctx.stroke(); } }
+  }
+
+  function update(dt){
+    t += dt; dawn += clamp(dawnTo - dawn, -dt * .15, dt * .15);
+    const g = G();
+    f.twitch = Math.max(0, f.twitch - dt);
+    inks.forEach(k => k.t += dt * .6); inks = inks.filter(k => k.t < 1);
+    splash.forEach(p => { p.t += dt * 1.5; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; }); splash = splash.filter(p => p.t < 1);
+    // 光と球体
+    if (light.on){
+      light.st += dt; light.rot += light.spin * dt * 3;
+      if (light.stage === 2) light.y = Math.max(g.sy + 40, light.y - 40 * dt);
+      if (light.stage === 4){ light.sy += ((g.sy - light.r * 1.1) - light.sy) * dt * 1.5; if (Math.random() < .5) splash.push({x:light.x + rnd(-40, 40), y:g.sy, vx:rnd(-80, 80), vy:rnd(-220, -80), t:0}); }
+      if (light.stage === 5){ light.sx += (W * .42 - light.sx) * dt * .35; light.sy += (vh * .1 - light.sy) * dt * .35; }
+      if (light.stage === 6){ light.spin = Math.max(0, light.spin - dt * 2); if (light.st > .8){ light.sx += (W + 120 - light.sx) * dt * 2.2; light.sy += (g.sy - 8 - light.sy) * dt * 2.2; light.r = Math.max(4, light.r - dt * 30); } }
+      if (light.stage >= 5) light.trail.push({x:light.sx, y:light.sy, a:.8});
+      light.trail.forEach(p => p.a -= dt * (light.stage === 6 ? .12 : .6)); light.trail = light.trail.filter(p => p.a > 0);
+    }
+    // 黒い影と大男
+    if (view === 'top'){
+      joe.st += dt; joe.y = vh * .78 - 56;   // 絵の高さが変わっても、いつも堤防のへりの水の中
+      if (joe.stage === 0){ const ex = W / 2 + Math.sin(t * .8) * W * .33 + Math.sin(t * 2.1) * 20; joe.vx = ex - joe.x; joe.x = ex;
+        joe.bx = clamp(joe.bx + ((held.ir ? 1 : 0) - (held.il ? 1 : 0)) * 240 * dt, 20, W - 20);
+        if (Math.abs(joe.bx - joe.x) < 60) joe.lit = Math.min(1, joe.lit + dt / 5); else joe.lit = Math.max(0, joe.lit - dt / 20);
+        im.innerHTML = `${Math.round(joe.lit * 100)}<small>％ 照らした</small>`; }
+      if (joe.stage === 3){ const p = Math.min(1, joe.st / .8); joe.kx = joe.x + 34 + (joe.bx + 20 - joe.x - 34) * p; joe.ky = joe.y - 26 + (vh * .78 + 12 - joe.y + 26) * p - Math.sin(p * Math.PI) * 120; }
+      if (joe.stage === 4) joe.x += Math.min(900, 200 + joe.st * 700) * dt;
+    }
+    // イカ
+    squids.forEach(q => {
+      if (q === f.hooked) return;
+      const dx = f.lx - q.x, dy = f.ly - q.y, d = Math.hypot(dx, dy), inWater = f.st === 'sink' || f.st === 'bottom';
+      const nearLight = light.on && light.stage === 0 && Math.abs(f.lx - light.x) < 110;
+      if (inWater && f.jerk > 0 && d < (nearLight ? 260 : 170) && q.gone <= 0 && Math.random() < (night === 'minato' ? .02 : .08)) q.want = 1;
+      q.gone = Math.max(0, q.gone - dt);
+      if (q.want && inWater){ const sp = 60; q.a = Math.atan2(dy, dx) + Math.PI; /* 腕を餌木に向けて寄る */ if (d > 12){ q.x += dx / d * sp * dt; q.y += dy / d * sp * dt; }
+        else if (f.jerk <= 0 && f.st !== 'atari'){ q.bite += dt; if (q.bite > (nearLight ? .25 : night === 'minato' ? 1.6 : .7)){ q.bite = 0; atari(q); } } }
+      else { q.want = 0; q.x += Math.cos(q.a) * 14 * dt; q.y += Math.sin(t * .7 + q.s * 9) * 6 * dt; if (q.x < g.px + 40) q.a = 0; if (q.x > W - 10) q.a = Math.PI; q.y = clamp(q.y, g.sy + 40, g.fy - 20); }
+    });
+    // 釣り
+    if (f.st === 'charge'){ f.pow += f.powDir * dt * .9; if (f.pow > 1){ f.pow = 1; f.powDir = -1; } if (f.pow < 0){ f.pow = 0; f.powDir = 1; } }
+    if (f.st === 'fly'){ f.vy += 420 * dt; f.lx += f.vx * dt; f.ly += f.vy * dt;
+      if (f.ly >= g.sy){ f.ly = g.sy; f.st = 'sink'; f.vy = 0; for (let i = 0; i < 8; i++) splash.push({x:f.lx, y:g.sy, vx:rnd(-50, 50), vy:rnd(-160, -60), t:0}); setHint('沈めて、しゃくる。'); } }
+    if (f.st === 'sink' || f.st === 'bottom'){
+      f.jerk = Math.max(0, f.jerk - dt);
+      if (f.jerk > 0){ f.ly -= 120 * dt; f.lx -= 18 * dt; } else if (f.st === 'sink') f.ly += 26 * dt;
+      if (held.ix){ f.lx -= 110 * dt; f.ly -= 50 * dt; }
+      f.ly = Math.max(g.sy + 6, f.ly);
+      if (f.ly >= g.fy - 8){ f.ly = g.fy - 8; if (f.st !== 'bottom'){ f.st = 'bottom'; setHint('底についた。しゃくって浮かせる。'); } } else if (f.st === 'bottom') f.st = 'sink';
+      if (f.lx < g.px + 10){ f.st = 'ready'; setHint('回収した。もう一度投げる。'); squids.forEach(q => q.want = 0); }
+    }
+    if (f.st === 'atari'){ f.atari -= dt; if (f.atari <= 0){ f.st = 'sink'; ib.classList.remove('atari'); if (f.cand){ f.cand.want = 0; f.cand.gone = 3; f.cand.a = Math.PI * Math.random(); } setHint('……離れていった。'); } }
+    if (f.st === 'fight'){
+      f.jetIn -= dt; if (f.jetIn <= 0 && f.jet <= 0){ f.jet = rnd(.5, .9); f.jetIn = rnd(1.2, 2.4); inks.push({x:f.lx + 20, y:f.ly, t:0}); setHint('イカが走った！ 巻くのを止める。'); }
+      if (f.jet > 0){ f.jet -= dt; f.lx = Math.min(g.far, f.lx + 60 * dt); f.ly = Math.min(g.fy - 10, f.ly + 25 * dt); f.stress += held.ib ? dt * 1.5 : -dt * .2; if (f.jet <= 0) setHint('いまだ、巻く。'); }
+      else { if (held.ib){ f.lx -= 75 * dt; f.ly -= 30 * dt; } f.stress = Math.max(0, f.stress - dt * .35); }
+      f.ly = Math.max(g.sy + 4, f.ly);
+      im.innerHTML = `${f.count}<small>杯</small>　<span style="font-size:13px;color:${f.stress > .6 ? '#ED6D46' : 'var(--dim)'}">${'●'.repeat(Math.ceil(f.stress * 5)) || '○'}</span>`;
+      if (f.stress >= 1){ f.st = 'sink'; const q = f.hooked; f.hooked = null; q.gone = 4; q.want = 0; q.a = 0; q.x += 30; f.stress = 0; ib.textContent = 'しゃくる'; setHint('身切れ。逃げられた。'); inks.push({x:f.lx, y:f.ly, t:0}); }
+      if (f.lx < g.px + 24){ const q = f.hooked; f.hooked = null; squids.splice(squids.indexOf(q), 1); f.count++; f.st = 'ready'; f.stress = 0;
+        setHint(f.count === 1 ? 'ぬき上げた！ アオリイカ。' : 'また一杯。'); spawn(1, light.on ? light.x : null); ib.textContent = '投げる'; meter(); }
+    }
+  }
+  function atari(q){
+    f.st = 'atari'; f.cand = q; f.atari = night === 'minato' ? .55 : .9; f.twitch = .5;
+    ib.textContent = '合わせる！'; ib.classList.add('atari'); setHint(night === 'minato' ? '竿先が、かすかに……小さな魚信。' : '竿先が、ピクッ。');
+  }
+  const setHint = s => { ih.textContent = s; };
+  const meter = () => { im.innerHTML = `${f.count}<small>杯</small>`; };
+  // 主ボタン：投げる（押して離す）／しゃくる／合わせる／巻く
+  ib.onpress = () => {
+    if (f.st === 'ready'){ f.st = 'charge'; f.pow = 0; f.powDir = 1; ib.textContent = '離して、投げる'; return; }
+    if (f.st === 'sink' || f.st === 'bottom'){ f.jerk = .32; f.st = 'sink'; f.vy = -1; return; }
+    if (f.st === 'atari'){ ib.classList.remove('atari'); f.st = 'fight'; f.hooked = f.cand; f.stress = 0; f.jet = 0; f.jetIn = rnd(.8, 1.5); f.twitch = 0; ib.textContent = '巻く（押しているあいだ）'; setHint('乗った！ 押しているあいだ巻く。イカが走ったら離す。'); return; }
+  };
+  ib.onrelease = () => {
+    if (f.st === 'charge'){ const g = G(); f.st = 'fly'; f.tries++;
+      const tx = g.px + 40 + f.pow * (g.far - g.px - 40), T = .9; f.lx = g.tip[0]; f.ly = g.tip[1]; f.vx = (tx - f.lx) / T; f.vy = ((g.sy - f.ly) - 210 * T * T) / T;
+      ib.textContent = 'しゃくる'; setHint('ひゅっ。'); }
+  };
+
+  const loop = now => {
+    const dt = Math.min(.05, (now - last) / 1000 || 0); last = now;
+    vh = H - (sh.classList.contains('on') ? sh.offsetHeight : $('#box').offsetHeight);
+    update(dt);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, vh); ctx.clip();
+    view === 'top' ? drawTop() : drawSide();
+    ctx.restore(); ctx.fillStyle = '#0e0d0c'; ctx.fillRect(0, vh, W, H - vh);
+    raf = requestAnimationFrame(loop);
+  };
+  const wait = test => new Promise(res => { const iv = setInterval(() => { if (test()){ clearInterval(iv); res(); } }, 100); });
+
+  return {
+    open(n){ night = n; $('#pic').classList.add('out'); $('#bg').style.backgroundImage = 'none'; $('#tint').className = ''; $('#glow').classList.remove('on');
+      el.classList.add('on'); fit(); addEventListener('resize', fit); last = performance.now(); raf = requestAnimationFrame(loop);
+      squids = []; f.st = 'ready'; f.count = 0; light.on = false; light.stage = 0; dawn = dawnTo = 0; view = 'side'; },
+    close(){ cancelAnimationFrame(raf); removeEventListener('resize', fit); el.classList.remove('on'); sheet(false); },
+    night(n){ night = n; squids = []; f.st = 'ready'; f.hooked = null; f.count = 0; view = 'side'; },
+    // 釣る。until() が true になったら（いまイカと格闘していなければ）終わる
+    async fish(o){
+      const g = G(); squids = []; spawn(o.squids || 3);
+      if (o.light){ light.on = true; light.stage = 0; light.spin = 0; light.x = g.px + (g.far - g.px) * .58; light.y = g.fy - 6; spawn(3, light.x); }
+      it.textContent = o.title; setHint(o.hint); ib.textContent = '投げる'; ib.disabled = false; ib.hidden = false; f.st = 'ready'; f.tries = 0; ix.hidden = false; il.hidden = ir.hidden = true; meter(); sheet(true);
+      const t0 = t;
+      await wait(() => (f.st === 'ready' || f.st === 'sink' || f.st === 'bottom') && o.until({count:f.count, secs:t - t0, tries:f.tries}));
+      sheet(false); ib.classList.remove('atari');
+      f.st = 'idle'; f.hooked = null; squids = [];   // 釣りはここでおしまい（裏で動かさない）
+      return f.count;
+    },
+    // 一晩め：足元の黒い影を懐中電灯で追う
+    async kage(){
+      view = 'top'; joe.stage = 0; joe.st = 0; joe.lit = 0; joe.bx = W / 2; joe.x = W / 2;
+      it.textContent = '黒い影を追う'; setHint('◀ ▶ を押して、懐中電灯で影を照らしつづける。'); ib.hidden = true; ix.hidden = true; il.hidden = ir.hidden = false; sheet(true);
+      await wait(() => joe.lit >= 1);
+      sheet(false); il.hidden = ir.hidden = true;
+    },
+    joe(stage){ joe.stage = stage; joe.st = 0; if (stage === 4) joe.sx = joe.x; },
+    view(v){ view = v; },
+    // 二晩め：光る球体
+    ufo(stage){ const g = G(); light.stage = stage; light.st = 0;
+      if (stage === 1) light.spin = .4; if (stage === 2) light.spin = 1.2; if (stage === 3){ light.spin = 2; light.y = g.sy + 30; }
+      if (stage === 4){ light.r = Math.min(W, vh) * .14; light.sx = light.x; light.sy = g.sy + light.r * .4; light.spin = 2.4; squids = []; }
+      if (stage === 6) dawnTo = 1; },
+  };
+}
+
 const PARTS = {
  koi: async () => {
   await scene('koi');
@@ -1180,6 +1833,180 @@ const PARTS = {
   await say('僕', '「ああ、典子に会いたい…………」', true);
   clear(); y.close();
  },
+ // 大楠山の沢で砂金採り（七月。喫茶店の一日とは別の日）
+ sakin: async () => {
+  const k = makeKawa();
+  const KD = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  const kan = v => (v >= 20 ? KD[Math.floor(v / 10)] : '') + (v >= 10 ? '十' : '') + KD[v % 10];
+  const banner = async (b, s) => { clear(); $('#banner b').textContent = b; $('#banner small').textContent = s; $('#banner').classList.add('on'); await sleep(1700); $('#banner').classList.remove('on'); await sleep(500); };
+  $('#clock').textContent = '七月'; $('#place').textContent = '三崎の家';
+  k.open('home'); clear();
+  await N('ある日、定職に就いたことが一度もない弟分の義男が家にやってきた。', true);
+  await say('義男', '「兄貴、砂金を採りに行きませんか？」', true);
+  await say('僕', '「砂金？どこへ？」', true);
+  await say('義男', '「川すよ、川」', true);
+  await say('僕', '「川？そんなとこにキンがあるのかよ？」', true);
+  await say('義男', '「穴場なんですよ三浦半島の河川は手付かずで、金がこれから高騰するからチャンスなんですよ」', true);
+  await say('僕', '「どうやって採るんだよ？」', true);
+  await say('義男', '「横浜と横須賀の間の大楠山を渓流沿いに入って行くと沢があるんですよ、そこできめの細かい網で砂をふるいにかけると金は比重が重いから底にたまるんですよ」', true);
+  await say('義男', '「一グラム一万円すよ」', true);
+  await say('僕', '「一グラム一万円？まじか？」', true);
+  await say('義男', '「そうですよ、一グラム採るのに小さな砂金二百個位ですけど」', true);
+  await say('僕', '「ほー」', true);
+  await say('義男', '「すくって、川の水で泥や砂をふるいにかけると底でキラッと光るんですよ、砂金が」', true);
+
+  // 一日め：大楠山の沢
+  k.show('river'); k.setLight(0); $('#clock').textContent = '明け方'; $('#place').textContent = '大楠山の沢';
+  await banner('砂金採り', '大楠山の沢・明け方');
+  await N('明け方に長靴をはいて大楠山の沢を登った。', true);
+  await N('木々に覆われた渓流は相模湾の沖合いとは全く違う景色で、カワセミが鳴く美しい清流が流れていた。', true);
+  await say('義男', '「兄貴、ここらへんでやってみましょう」', true);
+  await N('スコップで川砂を掘って、畳一畳ほどのフルイ網に入れて膝までの深さの川に入って二人で両側を抱えてフルイ始めた。', true);
+  let total = 0, lost = 0;
+  const round = async (first, hint) => {
+    let g = await k.dig(hint);
+    g = await k.furui(g);
+    k.show('pan');
+    if (first){
+      clear(); $('#pan').classList.remove('on'); $('#box').style.visibility = '';
+      await say('義男', '「この泥をこのパンニング皿に移して水に浸しながら回転させるんですよ」', true);
+      await say('僕', '「ほー、これで比重の重い砂金だけが下に溜まるのか」', true);
+    }
+    const r = await k.pan(g); lost += r.lost;
+    $('#box').style.visibility = ''; $('#pan').classList.remove('on');
+    if (first){
+      if (r.gold > 0){
+        await N('しばらく繰り返すと泥や砂が流れて底に溜まったものの中にキラッと光る小さな欠片が数個あった。', true);
+        await say('義男', '「うおー！ありましたよー」', true);
+      } else await N('しばらく繰り返したけれど、底にはなにも残らなかった。');
+    } else if (r.lost > 3) await N('速く回しすぎて、いくつか流してしまったらしい。');
+    const got = r.gold > 0 ? await k.pick() : 0;
+    total += got; return got;
+  };
+  const g1 = await round(true);
+  if (g1 > 0){
+    await say('僕', '「これが砂金かー、それにしても小さいなあ」', true);
+    await say('義男', '「こんなもんですよ、これが二百個位で一グラムなんですよ」', true);
+    await say('僕', '「気が遠くなるなあ……」', true);
+  } else await say('義男', '「最初はそんなもんすよ、兄貴」');
+  await N('少しずつ場所を移動しながら日没まで作業を続けた。', true);
+  k.show('river'); k.setLight(2); $('#clock').textContent = '夕方';
+  await N(`ここまでで、瓶の砂金は${kan(Math.min(99, total)) || '零'}粒${total > 99 ? 'あまり' : ''}。`);
+  await round(false);
+  k.show('river'); k.setLight(3); $('#clock').textContent = '日没';
+  await N('日が沈み、沢は暗くなった。');
+
+  // 二日め：川を少しずつ登る
+  k.show('river'); k.setLight(1); $('#clock').textContent = '翌日';
+  await N('翌日から砂金採りが本格的に始まった。', true);
+  await N('河原近くに車を停めて道なき道を分け入って砂金を採りながら川を少しずつ登って行った。', true);
+  await round(false, '川の中を押して掘る。大きな石を押すと、石を動かしてその下を掘る。');
+  await N('川底の石を動かして底の砂を掘り起こすと砂金が多いことがわかった。', true);
+  await say('義男', '「うおーっ！」', true);
+  await N('少し離れた場所で作業をしていた義男が大声をあげた。', true);
+  await say('僕', '「どした？」', true);
+  await N('走って行ってみると金歯ほどの塊がパンニング皿の底にあった。', true);
+  await say('僕', '「うおーっ！」', true);
+  await N('ふたりで飛び上がった。', true);
+
+  // 家でバーナー
+  k.show('home'); $('#clock').textContent = '数日後'; $('#place').textContent = '三崎の家';
+  await N('自宅に戻り数日間の成果である瓶詰めの砂金を陶器に乗せてバーナーで炙った。', true);
+  await N('金は一六〇〇度まで温度が上がると溶け始めるらしいのだ。', true);
+  const grams = Math.min(15, Math.max(1, Math.round(total * 8 / 200) + 2));   // 遊んだ分を数日ぶんに＋義男の塊（石の下ばかり掘ると十グラム前後）
+  k.show('burner'); clear(); await k.burner(total);
+  await N('顔をくっつけて見つめていると、いくつかの小さな砂金が陶器の上を滑るように動き出してひとつの塊になった。', true);
+  await N(`僅か${kan(grams)}グラムほどだったけれど換金すると${kan(grams)}万円になるという。`, grams === 10);
+  await say('僕', '「こりゃあすごいことだな……」', true);
+  await N('義男とふたりで祝杯をあげていると典子が帰ってきた。', true);
+  await say('典子', '「ただいま、なにしてるの？」', true);
+  await say('僕', '「ここ数日、義男と砂金を採りに行ってて……」', true);
+  await say('典子', '「砂金採り？ちょっとあなたたちいい歳してなにしてるのよ？小学生じゃあるまいしっ！」', true);
+  await say('僕', '「…………」', true);
+  await say('典子', '「ちゃんと仕事をしなさいよっ、まったく、鯉の餌やりとか砂金採りとか、バカじゃないの？」', true);
+  await N('典子は家の中に入っていった。', true);
+  await N('典子に叱られたけれど砂金採りは翌日からも続いた。', true);
+  clear(); k.close();
+ },
+ // 夜のイカ釣り。一晩め＝三崎港の大男（ウミウのジョー）、二晩め＝城ヶ島の光る球体
+ ika: async () => {
+  const u = makeUmi();
+  const banner = async (b, s) => { clear(); $('#banner b').textContent = b; $('#banner small').textContent = s; $('#banner').classList.add('on'); await sleep(1700); $('#banner').classList.remove('on'); await sleep(500); };
+  $('#clock').textContent = '夜'; $('#place').textContent = '焼き鳥屋';
+  u.open('minato'); clear();
+  await N('港の周辺を活動拠点とする工作員の男がいるらしい、という話を焼き鳥屋で聞いた。', true);
+  await say('僕', '「工作員？」', true);
+  await say('知り合い', '「そうなんだよ、港周辺の沖合いで瀬渡しといって、密輸とか密売とかしてるらしいんだよ、噂だけど」', true);
+  await say('僕', '「へー、工作員って位だから北とかの？」', true);
+  await say('知り合い', '「詳細はわからないんだよ、潜伏してるわけだから」', true);
+  await say('知り合い', '「通称はウミウのジョー」', true);
+  await say('僕', '「ウミウのジョー？」', true);
+  await say('知り合い', '「そうなんだよ、海にいる黒い海鵜のようにすごいスピードで水中を泳ぐらしいんだよ」', true);
+  await N('いろいろな人がいるんだな……、港町には。', true);
+
+  // 一晩め：三崎港
+  $('#clock').textContent = '真夜中'; $('#place').textContent = '三崎港';
+  await banner('夜のイカ釣り', '三崎港・真夜中');
+  await N('いつも通り真夜中に誰もいない港でイカを釣っていた。', true);
+  await N('満月の大潮で海面はうねりながら輝いていた。', true);
+  await N('釣れそうで釣れない時間が過ぎていった。', true);
+  await N('こういう時は小さな魚信も逃さないことが何よりも大切だ。', true);
+  const c1 = await u.fish({title:'イカを釣る', hint:'押して離すと投げる（強さは朱の棒）。沈めて、ときどき「しゃくる」。竿先がピクッとしたら合わせる。',
+    until:s => s.count >= 1 || s.secs > 40});
+  if (c1) await N('一杯だけ、アオリイカがあがった。');
+  await N('竿先に意識を集中している真っ最中に足元で大きな影が横切った。', true);
+  await N('なんだ？なんだ？今のは。', true);
+  u.view('top');
+  await N('堤防沿いの足元のへちを畳一畳ほどもある黒い影がゆらゆらと右へ左へ動いていた。', true);
+  await say('僕', '「ななななんだ？」', true);
+  await N('巨大魚かもしれないと思って玉網を持って懐中電灯を照らしながら誰もいない堤防のへち沿いを右へ左へ追いかけた。', true);
+  await u.kage();
+  u.joe(1);
+  await N('しばらく経って海水を噴水のように吐き出しながら大きな影が水面に浮かんできた。', true);
+  await say('僕', '「なななななんだ？」', true);
+  u.joe(2);
+  await N('突然、右手に活きたままのタコを握りしめた大男が浮かび上がってきた。', true);
+  await N('腰を抜かした僕に大男は言った。', true);
+  await say('大男', '「タコが出てきて、アニハセヨー！」', true);
+  u.joe(3); await sleep(900); u.joe(4);
+  await N('大男はタコを僕に向かって放り投げて城ヶ島方面に向かってすごいスピードで水中を泳いでいった。', true);
+  u.joe(5);
+  await N('足もとで、活きたタコがうねうねと動いていた。');
+
+  // 噂と、二晩め：城ヶ島
+  u.view('side'); u.night('jogashima'); $('#clock').textContent = '後日'; $('#place').textContent = '三崎';
+  await N('城ヶ島で度々ＵＦＯが目撃されていると近所で噂になっていた。', true);
+  await N('焼き鳥屋で知り合いの漁師が「ＵＦＯ見たか？すげーぞ」と言っていた。', true);
+  await N('僕も何度か赤い大きな発光体が糸を引きながら城ヶ島の先に消えるのを見たことがあった。', true);
+  await N('気象庁に問い合わせると「それは火球ですね」と軽く言われた。', true);
+  await say('僕', '「かきゅう？……」', true);
+  $('#clock').textContent = '真夜中'; $('#place').textContent = '城ヶ島';
+  await banner('城ヶ島', '夜釣りの仲間たちと');
+  await N('ある夜、夜釣りの仲間たち数人で城ヶ島で沖に向かって並んでイカ釣りをしていた。', true);
+  await N('真夜中の岸壁には僕たち以外には誰もいなかった。', true);
+  await N('岸壁から二十メートル程先に海底でチカッと光るものがあり、その周辺に仕掛けを投げ込むと面白いようにイカがつれた。', true);
+  const c2 = await u.fish({title:'光をめがけて投げる', hint:'海底の光のあたりに投げる（強さの棒の白い印）。光のそばは、すぐに乗る。', light:true, squids:2,
+    until:s => s.count >= 5 || s.secs > 100});
+  await N('仲間たちとそこを目掛けてキャストしてイカを釣った。', true);
+  if (c2) await N(`僕のクーラーには、アオリイカが${['', '一', '二', '三', '四', '五', '六', '七', '八', '九'][Math.min(9, c2)]}杯。`);
+  $('#clock').textContent = '夜明け前';
+  u.ufo(1); await N('夜明け近くになってその光がゆっくりと回転を始めた。', true);
+  await N('「なななんだ？」', true);
+  await N('みんなでゆっくりと回転する光を息を飲んで見つめた。', true);
+  await N('「なななんだ？」', true);
+  u.ufo(2); await N('光はだんだんと回転のスピードを上げ、いくつもの線になって徐々に海底からゆっくりと浮かび上がってきた。', true);
+  await N('「なななんだ？」', true);
+  u.ufo(3); await N('やがて水面がこんもりと盛り上がって来た。', true);
+  await N('「なななんだ？」', true);
+  u.ufo(4); await N('水しぶきを上げながら直径十メートルの発光する球体が空中に浮かんできた。', true);
+  await N('水面は渦を巻いていた。', true);
+  u.ufo(5); await N('球体は僕たちの目の前を通り過ぎてゆっくりと夜空に向かって昇りはじめた。', true);
+  await N('みんなポカンと口を開けてそれを見つめていた。', true);
+  u.ufo(6); await N('やがて五十メートル程の高さまで昇ると回転が止まり、光の糸を引いて水平線の彼方に消えた。', true);
+  await N('釣竿を握ったままの僕たちは光跡を残した水平線を見つめたまま身動きができなくなっていた。', true);
+  await N('「今日は帰ろう……」と誰かが言った。', true);
+  clear(); u.close();
+ },
 };
 const ORDER = ['koi', 'asa', 'hiru', 'yu', 'yoru'];   // 「一日をとおして遊ぶ」の順（追浜は別の日）
 async function day(from = 0){
@@ -1194,7 +2021,8 @@ const PLACES = [
    games:[['yu', 'コーヒーを淹れる'], ['yoru', '夜の路地で、おにゃんどん']]},
   {key:'kamakurayama', xy:[71, 85], icon:'koi', line:1, st:[76, 150], sl:'below', name:'鎌倉山', text:'御代川邸の池。一匹一五〇万円の鯉たちに、まんべんなく。', games:[['koi', '鯉の餌やり']]},
   {key:'oppama', xy:[267, 96], icon:'car', line:2, st:[316, 150], sl:'right', name:'追浜', text:'海っぺりの車両集積所で、新車を指定の場所へ。バックは禁止。', games:[['oppama', '車を指定の場所へ']]},
-  {key:'sakin', xy:[248, 304], icon:'kin', short:'川', line:3, st:[316, 284], sl:'left', name:'三浦半島の川', text:'川底の砂をすくって、砂金をさがす。', games:[], soon:true},
+  {key:'jogashima', xy:[304, 466], icon:'ika', lb:'right', line:5, st:[300, 452], sl:'right', name:'三崎港・城ヶ島', short:'城ヶ島', text:'真夜中のイカ釣り。満月の港の足もとと、城ヶ島の海の底に、なにかがいる。', games:[['ika', '夜のイカ釣り']]},
+  {key:'sakin', xy:[248, 304], icon:'kin', short:'川', line:3, st:[316, 284], sl:'left', name:'三浦半島の川', text:'大楠山の沢で、義男と砂金採り。掘って、ふるって、皿を回す。', games:[['sakin', '砂金採り']]},
 ];
 const played = new Set((() => { try { return JSON.parse(sessionStorage.getItem('played') || '[]'); } catch (e) { return []; } })());
 function markPlayed(id){ played.add(id); try { sessionStorage.setItem('played', JSON.stringify([...played])); } catch (e) {} }
@@ -1207,6 +2035,9 @@ const ICONS = {
   car: `<path d="M-16 4 V-2 L-9 -3 L-5 -9 H7 L11 -3 L16 -2 V4 Z" fill="${SHU}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>
         <path d="M-3 -7 H6 L8 -3 H-5 Z" fill="${KAMI}" stroke="${INK}" stroke-width=".8"/>
         <circle cx="-8" cy="5" r="3.6" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/><circle cx="8" cy="5" r="3.6" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/>`,
+  ika: `<path d="M0 -15 C7 -9 7 0 5 5 H-5 C-7 0 -7 -9 0 -15 Z" fill="${KAMI}" stroke="${INK}" stroke-width="1.2"/>
+        <path d="M-5 5 C-7 10 -9 12 -8 15 M-2 5 C-3 10 -3 13 -2 16 M2 5 C3 10 3 13 2 16 M5 5 C7 10 9 12 8 15" fill="none" stroke="${INK}" stroke-width="1.1"/>
+        <path d="M-5 -6 L-10 -10 M5 -6 L10 -10" stroke="${INK}" stroke-width="1"/><circle cx="0" cy="-2" r="2.2" fill="${SHU}"/>`,
   kin: `<ellipse cx="0" cy="4" rx="15" ry="6" fill="#c9b48f" stroke="${INK}" stroke-width="1.2"/><ellipse cx="0" cy="3" rx="9.5" ry="3.4" fill="#a8916b"/>
         <path d="M-2 -13 l1.6 4.4 l4.4 1.6 l-4.4 1.6 l-1.6 4.4 l-1.6 -4.4 l-4.4 -1.6 l4.4 -1.6 Z" fill="#d6a943"/>
         <circle cx="7" cy="-8" r="1.4" fill="#d6a943"/><circle cx="-9" cy="-4" r="1.1" fill="#d6a943"/>`,
@@ -1230,10 +2061,10 @@ const ROSEN_SVG = `<svg class="emap rosen" viewBox="0 0 400 490" role="img" aria
     <rect width="132" height="34" fill="${SHU}"/>
     <text x="66" y="23" text-anchor="middle" style="fill:#fff;font-size:17px;font-weight:600;letter-spacing:.2em">夕日の歌線</text>
     <text x="142" y="15" class="sm">YUHI NO UTA LINE</text>
-    <text x="142" y="30" class="sm">鎌倉山 ─ 三崎</text>
+    <text x="142" y="30" class="sm">鎌倉山 ─ 城ヶ島</text>
   </g>
-  <path d="M76 150 H316 V284 L200 400 V412" fill="none" stroke="${INK}" stroke-width="15" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M76 150 H316 V284 L200 400 V412" fill="none" stroke="${SHU}" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M76 150 H316 V284 L200 400 V452 H300" fill="none" stroke="${INK}" stroke-width="15" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M76 150 H316 V284 L200 400 V452 H300" fill="none" stroke="${SHU}" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
   <g id="spots"></g>
   <g transform="translate(24 462)">
     <circle cx="7" cy="-4" r="6" fill="${KAMI}" stroke="${INK}" stroke-width="3"/><text x="20" y="0" class="sm" style="fill:${INK}">遊べる駅</text>
@@ -1241,7 +2072,7 @@ const ROSEN_SVG = `<svg class="emap rosen" viewBox="0 0 400 490" role="img" aria
   </g>
 </svg>`;
 function rosenSpot(pl, i){
-  const [x, y] = pl.st, end = pl.line === 4, short = pl.short || pl.name.split('・')[0];
+  const [x, y] = pl.st, end = pl.line === 5, short = pl.short || pl.name.split('・')[0];
   const sub = pl.soon ? '近日開業' : pl.sub || pl.games.map(g => g[1]).join('・');
   const code = `Y0${pl.line}`;
   const tx = {left:-28, right:30}[pl.sl] || 0, ty = pl.sl === 'below' ? 40 : 2, anc = {left:'end', right:'start'}[pl.sl] || 'middle';
@@ -1262,6 +2093,7 @@ function drawMap(){
     const [x, y] = pl.xy, short = pl.short || pl.name.split('・')[0];
     const label = pl.lb === 'left'
       ? `<text class="nm" x="-32" y="5" text-anchor="end">${short}</text>`
+      : pl.lb === 'right' ? `<text class="nm" x="30" y="5" text-anchor="start">${short}</text>`
       : `<text class="nm" x="0" y="42" text-anchor="middle">${short}</text>`;
     return `<g class="spot${pl.soon ? ' soon' : ''}" data-i="${i}" transform="translate(${x} ${y})" role="button" tabindex="0" aria-label="${pl.name}">
       <circle class="halo" r="22"/><circle class="ring" r="22"/>${ICONS[pl.icon]}
@@ -1299,7 +2131,7 @@ $('#tomap').onclick = () => { location.href = location.pathname + location.searc
 showMap();
 // ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）。?ba=oppama は追浜だけ
 const baKey = new URLSearchParams(location.search).get('ba'), ba = ORDER.indexOf(baKey);
-if (baKey === 'oppama') playOne('oppama');
+if (['oppama', 'sakin', 'ika'].includes(baKey)) playOne(baKey);
 else if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
 })();
 </script>
