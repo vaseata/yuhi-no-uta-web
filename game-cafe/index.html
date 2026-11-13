@@ -24,10 +24,12 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--ink);color:var(--paper);font-family:var(--mincho);
-  -webkit-tap-highlight-color:transparent;overflow:hidden}
+  -webkit-tap-highlight-color:transparent;overflow:hidden;overscroll-behavior:none;
+  touch-action:manipulation;-webkit-text-size-adjust:100%}   /* スマホ：すばやく2回押しても拡大しない */
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
-#app{position:fixed;inset:0;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}   /* 長押しで文字選択や拡大鏡を出さない */
+button{touch-action:manipulation;-webkit-touch-callout:none}
 
 /* 絵（ぼかした地＋全体が見える絵）と、時刻の色 */
 #scene{position:absolute;inset:0;isolation:isolate;overflow:hidden}
@@ -218,6 +220,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #tomap{margin-left:14px;font-size:12px;letter-spacing:.12em;border:1px solid var(--line);padding:4px 10px;color:var(--dim)}
 
 @media (min-width:900px){ :root{--boxh:30vh} }
+/* スマホ（読者の7割）。親指で押しやすい大きさに、板は低めにして絵を広く */
+@media (max-width:600px){
+  .sheet{padding-top:12px}
+  .sheet h3{font-size:14px;margin-bottom:2px}
+  .sheet .hint{font-size:12.5px;line-height:1.7;margin-bottom:8px}
+  .big{min-height:60px;font-size:17px}
+  .drow .dk{width:72px;font-size:22px}
+  .drow2 .btn{min-height:46px}
+  #choices button{padding:13px 14px;font-size:16px}
+  .meter{font-size:24px}
+}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
 </head>
@@ -1709,9 +1722,25 @@ function makeChase(){
     [-170, -2300, 'ikesu', 92], [480, -2300, 'bridge2', 96], [480, -3100, 'shitamachi', 80], [120, -3100, 'shitamachi', 80],
     [120, -3600, 'port', 150], [760, -3600, 'umetate', 210], [760, -4040, 'end', 210],
   ];
+  // 曲がり角を丸める（半径 90 の弧を点で足す）。曲がりやすくするため
+  const RR = [R[0]];
+  for (let i = 1; i < R.length - 1; i++){
+    const [px, py] = R[i - 1], [x, y, z, w] = R[i], [nx, ny] = R[i + 1];
+    const a1 = Math.atan2(x - px, -(y - py)), a2 = Math.atan2(nx - x, -(ny - y));
+    let da = a2 - a1; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+    if (Math.abs(da) < .35){ RR.push(R[i]); continue; }
+    const r = Math.min(90, Math.hypot(x - px, y - py) * .45, Math.hypot(nx - x, ny - y) * .45) / Math.tan(Math.abs(da) / 2) * Math.tan(Math.abs(da) / 2);
+    const back = r * Math.tan(Math.abs(da) / 2) > 0 ? Math.min(r, Math.hypot(x - px, y - py) * .45) : 0;
+    const sx = x - Math.sin(a1) * back, sy = y + Math.cos(a1) * back, ex = x + Math.sin(a2) * back, ey = y - Math.cos(a2) * back;
+    for (let k = 0; k <= 6; k++){ const u = k / 6;   // 角をはさむ二次曲線
+      const qx = (1 - u) * (1 - u) * sx + 2 * u * (1 - u) * x + u * u * ex, qy = (1 - u) * (1 - u) * sy + 2 * u * (1 - u) * y + u * u * ey;
+      RR.push([qx, qy, k < 3 ? R[i - 1][2] : z, Math.max(w, R[i - 1][3]) + 10]); }
+  }
+  RR.push(R[R.length - 1]);
   const SEG = []; let total = 0;
-  for (let i = 0; i < R.length - 1; i++){
-    const [x0, y0, z, w] = R[i], [x1, y1] = R[i + 1], L = Math.hypot(x1 - x0, y1 - y0);
+  for (let i = 0; i < RR.length - 1; i++){
+    const [x0, y0, z, w] = RR[i], [x1, y1] = RR[i + 1], L = Math.hypot(x1 - x0, y1 - y0);
+    if (L < .5) continue;
     SEG.push({x0, y0, x1, y1, z, w, L, s:total, a:Math.atan2(x1 - x0, -(y1 - y0))}); total += L;
   }
   const BASE = {shotengai:120, kado:135, bridge:160, nada:135, ikesu:150, bridge2:165, shitamachi:155, port:140, umetate:100, end:80};
@@ -1760,6 +1789,7 @@ function makeChase(){
     return {x:g.x0 + (g.x1 - g.x0) * u, y:g.y0 + (g.y1 - g.y0) * u, a:g.a, z:g.z}; };
   const hitObs = (x, y) => OBS.some(o => Math.abs(x - o.x) < o.w / 2 && Math.abs(y - o.y) < o.h / 2);
   const corners = (x, y, a) => { const c = Math.cos(a), s = Math.sin(a); return [[-10, -21], [10, -21], [-10, 21], [10, 21], [0, -22]].map(([dx, dy]) => [x + dx * c - dy * s, y + dx * s + dy * c]); };
+  const hitObsAny = (x, y, a) => corners(x, y, a).some(([px, py]) => hitObs(px, py));
   const blocked = (x, y, a) => corners(x, y, a).some(([px, py]) => nearest(px, py, pSeg).d > -1 || hitObs(px, py));
 
   function caption(lines){ caps.push(...lines); }
@@ -1775,9 +1805,20 @@ function makeChase(){
       car.v = key.go ? Math.min(vmax, car.v + 220 * dt) : Math.max(0, car.v - 160 * dt);
       if (car.v > vmax) car.v = Math.max(vmax, car.v - 300 * dt);
       const st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
-      car.a += st * 2.5 * dt * Math.min(1, car.v / 90);
+      car.a += st * 3.4 * dt * Math.min(1, .35 + car.v / 80);
+      if (st && car.v > 150) car.v -= 70 * dt;   // 強く切ると、タイヤが軋んで少し落ちる
+      // 手助け：少し先の道の向きへ、ハンドルを戻す（離しているときは強め）
+      const ahead = at(pS + 70), want = Math.atan2(ahead.x - car.x, -(ahead.y - car.y));
+      let da = want - car.a; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+      car.a += clamp(da, -1, 1) * (st ? .6 : 2.4) * dt * Math.min(1, car.v / 60);
       const nx = car.x + Math.sin(car.a) * car.v * dt, ny = car.y - Math.cos(car.a) * car.v * dt;
-      if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; } else if (car.v > 40) bump(); else car.v = 0;
+      if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; }
+      else if (hitObsAny(nx, ny, car.a)){ if (car.v > 40) bump(); else car.v = 0; }
+      else {   // 壁（欄干・家並み）はこすって滑る。止まらない
+        if (!blocked(nx, car.y, car.a)) car.x = nx; else if (!blocked(car.x, ny, car.a)) car.y = ny;
+        car.a += clamp(da, -.5, .5) * 4 * dt; car.v *= Math.pow(.35, dt);
+        if (car.v > 120 && Math.random() < .3) sparks.push({x:car.x + rnd(-10, 10), y:car.y, vx:rnd(-60, 60), vy:rnd(-60, 60), t:0});
+      }
       const n = nearest(car.x, car.y, pSeg); pSeg = n.i; pS = SEG[n.i].s + n.u * SEG[n.i].L;
       const z = SEG[pSeg].z;
       if (z !== zone){ zone = z; caps = []; if (capNow) capT = Math.min(capT, 1.2); if (CAP[z]) caption(CAP[z]);   // 前の区間の残りの字幕は捨てる
