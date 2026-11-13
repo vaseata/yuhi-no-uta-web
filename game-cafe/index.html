@@ -1170,7 +1170,7 @@ function makeKawa(){
     // 濁り（ゆすると水に泥が出る）
     if (net.splash > 0){ const g = ctx.createRadialGradient(W / 2, wy + 30, 10, W / 2, wy + 30, W * .5);
       g.addColorStop(0, `rgba(120,100,60,${net.splash * .6})`); g.addColorStop(1, 'rgba(120,100,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, wy, W, vh - wy); }
-    const a = Math.sin(net.ph) * .2, L = Math.min(W * .84, 560);
+    const tl = net.drag ? net.fx : Math.sin(net.ph), a = tl * .2, L = Math.min(W * .84, 560);   // 指で持っているあいだは指の傾き
     ctx.save(); ctx.translate(W / 2, wy + 6); ctx.rotate(a);
     ctx.fillStyle = 'rgba(20,20,20,.25)'; ctx.fillRect(-L / 2, -6, L, 16);
     // 網の中の砂と泥
@@ -1184,14 +1184,14 @@ function makeKawa(){
     ctx.fillStyle = '#e9c9a8'; ctx.fillRect(-L / 2 - 14, -10, 16, 10); ctx.fillRect(L / 2 - 2, -10, 16, 10);
     ctx.restore();
     ctx.font = '600 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#efe8da';
-    ctx.fillText('僕', W / 2 - L / 2, wy - 46 - Math.sin(net.ph) * L * .1); ctx.fillText('義男', W / 2 + L / 2, wy - 46 + Math.sin(net.ph) * L * .1);
+    ctx.fillText('僕', W / 2 - L / 2, wy - 46 - tl * L * .1); ctx.fillText('義男', W / 2 + L / 2, wy - 46 + tl * L * .1);
     // こぼれた砂
     net.spill.forEach(p => { ctx.fillStyle = `rgba(168,152,120,${1 - p.t})`; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); });
     // 拍子の目盛り（両はしの朱のところで、ゆする）
     const gx = W / 2, gy = vh * .14, gw = Math.min(W * .7, 320);   // 朱の幅は |sin| > .75 のところ
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(gx - gw / 2, gy - 8, gw, 16);
     ctx.fillStyle = 'rgba(237,109,70,.55)'; ctx.fillRect(gx - gw / 2, gy - 8, gw * .125, 16); ctx.fillRect(gx + gw / 2 - gw * .125, gy - 8, gw * .125, 16);
-    ctx.fillStyle = '#efe8da'; ctx.fillRect(gx + Math.sin(net.ph) * gw / 2 - 2, gy - 12, 4, 24);
+    ctx.fillStyle = '#efe8da'; ctx.fillRect(gx + tl * gw / 2 - 2, gy - 12, 4, 24);
   }
   function drawPan(withGlint){
     const c = [W / 2, vh / 2], r = R();
@@ -1263,7 +1263,7 @@ function makeKawa(){
     stones.forEach(s => { if (s.moving) s.off = Math.min(1, s.off + dt * 2.5); });
     net.splash = Math.max(0, net.splash - dt * .8);
     net.spill.forEach(p => { p.t += dt * 1.4; p.y += 60 * dt; }); net.spill = net.spill.filter(p => p.t < 1);
-    if (mode === 'furui') net.ph += dt * Math.PI / .75;
+    if (mode === 'furui' && !net.drag) net.ph += dt * Math.PI / .75;
     if (mode === 'pan' || mode === 'pick'){
       if (!pan.drag) pan.w *= Math.exp(-1.6 * dt);
       pan.rot = (pan.rot || 0) + pan.w * dt;
@@ -1321,8 +1321,9 @@ function makeKawa(){
     },
     // 二　ふるう。義男と二人で網をゆする。端に来たときに押すと泥が抜ける。外すと砂がこぼれる
     furui(gold){
-      mode = 'furui'; setStep(2); pt.textContent = '二　フルイ網をゆする'; pn.textContent = '網が朱のところに来たときに「ゆする」。義男と息を合わせる。';
-      net.mud = 1; net.ph = 0; net.used = 0; pb.textContent = 'ゆする'; pb.disabled = false; sheet(true);
+      mode = 'furui'; setStep(2); pt.textContent = '二　フルイ網をゆする';
+      pn.textContent = '網を指で左右にゆする（大きく、ゆったり往復）。網が朱のところに来たときに、画面か「ゆする」を押してもいい。';
+      net.mud = 1; net.ph = 0; net.used = 0; net.drag = false; net.fx = 0; pb.textContent = 'ゆする'; pb.disabled = false; sheet(true);
       const meter = () => pm.innerHTML = `${Math.round(net.mud * 100)}<small>％ 泥</small>`; meter();
       return new Promise(res => {
         pb.onclick = () => {
@@ -1332,8 +1333,32 @@ function makeKawa(){
             for (let i = 0; i < 8; i++) net.spill.push({x:W / 2 + side * Math.min(W * .42, 280) + rnd(-8, 8), y:vh * .58 - 10, t:rnd(0, .3)});
             pn.textContent = 'ばしゃっ。網のはしから、砂がこぼれた。'; }
           meter();
-          if (net.mud <= 0){ pb.onclick = null; pb.disabled = true; setTimeout(() => res(gold), 600); }
+          if (net.mud <= 0) finish();
         };
+        const finish = () => { pb.onclick = null; pb.disabled = true; down = move = up = null; net.drag = false; setTimeout(() => res(gold), 600); };
+        // 指で：網が指についてきて傾く。端から端まで振るたびに一回。速すぎると砂がこぼれる
+        let x0 = 0, moved = 0, sideNow = 0, lastStroke = 0;
+        down = x => { x0 = x; moved = 0; net.drag = true; net.fx = clamp((x - W / 2) / (W * .3), -1, 1); };
+        move = x => {
+          if (!net.drag) return;
+          moved = Math.max(moved, Math.abs(x - x0));
+          net.fx = clamp((x - W / 2) / (W * .3), -1, 1);   // 画面の左に指があれば左が下がる
+          const sd = net.fx > .6 ? 1 : net.fx < -.6 ? -1 : 0;
+          if (sd && sd !== sideNow){
+            const now = performance.now() / 1000, gapT = now - lastStroke;
+            if (sideNow !== 0){
+              if (gapT < .22){ gold -= Math.ceil(gold * .05); net.mud = Math.max(0, net.mud - .03);
+                for (let i = 0; i < 8; i++) net.spill.push({x:W / 2 + sd * Math.min(W * .42, 280) + rnd(-8, 8), y:vh * .58 - 10, t:rnd(0, .3)});
+                pn.textContent = 'ばしゃっ。乱暴すぎて、網のはしから砂がこぼれた。'; }
+              else { net.mud = Math.max(0, net.mud - (gapT < 1.6 ? .13 : .07)); net.splash = 1; pn.textContent = sd < 0 ? 'せーの。' : '「いいすね、兄貴」'; }
+              meter();
+              if (net.mud <= 0){ finish(); return; }
+            }
+            sideNow = sd; lastStroke = now;
+          }
+        };
+        up = () => { if (net.drag && moved < 12){ net.drag = false; pb.onclick(); return; }   // タップは「ゆする」と同じ
+          if (net.drag){ net.ph = Math.asin(clamp(net.fx, -1, 1)); net.drag = false; } };
       });
     },
     // 三　パンニング皿を回す。ちょうどの速さで軽い砂だけが縁から流れ出る。速すぎると砂金も飛ぶ
@@ -1711,6 +1736,19 @@ function makeChase(){
     b.oncontextmenu = e => e.preventDefault();
   };
   hold(cl, 'l'); hold(cr, 'r'); hold(cgo, 'go');
+  // 仮想ジョイスティック。運転中に画面へ指を置くと、そこに輪が出る。倒した向きへ曲がり、倒した大きさがアクセル
+  const TOUCH = matchMedia('(pointer: coarse)').matches, JR = 58;
+  const joy = {on:false, id:null, bx:0, by:0, x:0, y:0};
+  el.addEventListener('pointerdown', e => {
+    if (mode !== 'drive' || !sh.classList.contains('on')) return;
+    const r = el.getBoundingClientRect(); e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {}
+    joy.on = true; joy.id = e.pointerId; joy.bx = joy.x = clamp(e.clientX - r.left, JR + 8, W - JR - 8); joy.by = joy.y = clamp(e.clientY - r.top, JR + 60, vh - JR - 8);
+  });
+  el.addEventListener('pointermove', e => { if (!joy.on || e.pointerId !== joy.id) return; const r = el.getBoundingClientRect();
+    let dx = e.clientX - r.left - joy.bx, dy = e.clientY - r.top - joy.by; const d = Math.hypot(dx, dy); if (d > JR){ dx *= JR / d; dy *= JR / d; }
+    joy.x = joy.bx + dx; joy.y = joy.by + dy; });
+  const joyOff = e => { if (joy.on && (!e || e.pointerId === joy.id)){ joy.on = false; joy.x = joy.bx; joy.y = joy.by; } };
+  el.addEventListener('pointerup', joyOff); el.addEventListener('pointercancel', joyOff);
   const KEYS = {ArrowLeft:'l', a:'l', ArrowRight:'r', d:'r', ArrowUp:'go', w:'go'};
   const kd = e => { if (KEYS[e.key] && sh.classList.contains('on')){ e.preventDefault(); key[KEYS[e.key]] = true; } };
   const ku = e => { if (KEYS[e.key]) key[KEYS[e.key]] = false; };
@@ -1802,15 +1840,22 @@ function makeChase(){
     capT -= dt; if (capT <= 0 && !caps.length) capNow = '';
     if (mode === 'drive'){
       const vmax = VMAX[zone] || 200;
-      car.v = key.go ? Math.min(vmax, car.v + 220 * dt) : Math.max(0, car.v - 160 * dt);
+      const jdx = joy.x - joy.bx, jdy = joy.y - joy.by, jm = joy.on ? Math.min(1, Math.hypot(jdx, jdy) / JR) : 0, useJoy = jm > .18;
+      const want0 = useJoy ? vmax * Math.min(1, jm * 1.15) : key.go ? vmax : 0;
+      car.v = car.v < want0 ? Math.min(want0, car.v + 220 * dt) : Math.max(want0, car.v - 160 * dt);
       if (car.v > vmax) car.v = Math.max(vmax, car.v - 300 * dt);
-      const st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
+      let st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
+      if (useJoy){   // 倒した向き（画面の上＝北）へ向きを変える
+        let dj = Math.atan2(jdx, -jdy) - car.a; while (dj > Math.PI) dj -= 2 * Math.PI; while (dj < -Math.PI) dj += 2 * Math.PI;
+        st = clamp(dj * 2.2, -1, 1); if (Math.abs(dj) < .04) st = 0;
+      }
+      if (useJoy) sedan.go = true;
       car.a += st * 3.4 * dt * Math.min(1, .35 + car.v / 80);
       if (st && car.v > 150) car.v -= 70 * dt;   // 強く切ると、タイヤが軋んで少し落ちる
       // 手助け：少し先の道の向きへ、ハンドルを戻す（離しているときは強め）
       const ahead = at(pS + 70), want = Math.atan2(ahead.x - car.x, -(ahead.y - car.y));
       let da = want - car.a; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
-      car.a += clamp(da, -1, 1) * (st ? .6 : 2.4) * dt * Math.min(1, car.v / 60);
+      car.a += clamp(da, -1, 1) * (useJoy ? .3 : st ? .6 : 2.4) * dt * Math.min(1, car.v / 60);   // ジョイスティックのときは手助けを弱く
       const nx = car.x + Math.sin(car.a) * car.v * dt, ny = car.y - Math.cos(car.a) * car.v * dt;
       if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; }
       else if (hitObsAny(nx, ny, car.a)){ if (car.v > 40) bump(); else car.v = 0; }
@@ -1826,7 +1871,7 @@ function makeChase(){
       // 黒いセダン
       if (key.go) sedan.go = true;
       const gap = pS - sedan.s, base = BASE[zone] || 160;
-      if (!sedan.go){ chh.textContent = 'アクセルを押して、出す。◀ ▶ でハンドル。'; return; }
+      if (!sedan.go){ chh.textContent = TOUCH ? '画面に指を置いて、行きたい向きへ倒す。大きく倒すほど速い。' : 'アクセルを押して、出す。◀ ▶ でハンドル。（画面をなぞるジョイスティックでも）'; return; }
       const ve = base + (gap > 380 ? 120 : gap > 260 ? 40 : 0) - (gap < 90 ? 60 : 0);
       sedan.s += ve * dt;
       chh.textContent = `黒いセダンとの車間　約${Math.max(0, Math.round((gap - 46) / 8))}メートル`;
@@ -1850,7 +1895,7 @@ function makeChase(){
     const sc = clamp(W / 420, .78, 1.2), look = 90;
     const cx0 = car.x + Math.sin(car.a) * look, cy0 = car.y - Math.cos(car.a) * look;
     const sx = (Math.random() - .5) * shake * 20, sy = (Math.random() - .5) * shake * 20;
-    ctx.save(); ctx.translate(W / 2 + sx, vh * .55 + sy); ctx.scale(sc, sc); ctx.translate(-cx0, -cy0);
+    ctx.save(); ctx.translate(W / 2 + sx, vh * (TOUCH ? .4 : .55) + sy); ctx.scale(sc, sc); ctx.translate(-cx0, -cy0);   // スマホは車を上寄せにして、下を親指の場所に
     const x0 = cx0 - W / sc, x1 = cx0 + W / sc, y0 = cy0 - vh / sc, y1 = cy0 + vh / sc;
     // 海と陸（三崎の陸・城ヶ島・向こう岸）
     ctx.fillStyle = '#2f5566'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
@@ -1987,6 +2032,14 @@ function makeChase(){
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, vh); ctx.clip();
     if (mode === 'run') drawRun(); else if (mode === 'boat') drawBoat(); else if (mode === 'yuyake') drawYuyake(); else drawWorld();
     if (flash > 0){ ctx.fillStyle = `rgba(240,242,244,${flash * .8})`; ctx.fillRect(0, 0, W, vh); }
+    if (mode === 'drive' && sh.classList.contains('on') && (TOUCH || joy.on)){
+      const bx = joy.on ? joy.bx : 22 + JR, by = joy.on ? joy.by : vh - 22 - JR, kx = joy.on ? joy.x : bx, ky = joy.on ? joy.y : by;
+      ctx.fillStyle = `rgba(239,232,218,${joy.on ? .14 : .08})`; ctx.strokeStyle = `rgba(239,232,218,${joy.on ? .55 : .3})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by, JR, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = joy.on ? 'rgba(237,109,70,.9)' : 'rgba(237,109,70,.45)'; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, 7); ctx.stroke();
+      if (!joy.on){ ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(239,232,218,.6)'; ctx.fillText('指を置いて、行く向きへ倒す', bx + JR + 10, by + 4); }
+    }
     // 字幕（本文）
     if (capNow){ ctx.font = '15px "Shippori Mincho", serif'; const lines = []; let cur = '';
       for (const ch of capNow){ if (ctx.measureText(cur + ch).width > W - 44){ lines.push(cur); cur = ch; } else cur += ch; } lines.push(cur);
@@ -1997,7 +2050,7 @@ function makeChase(){
   }
   const loop = now => { const dt = Math.min(.05, (now - last) / 1000 || 0); last = now; update(dt); draw(); raf = requestAnimationFrame(loop); };
   const wait = test => new Promise(res => { const iv = setInterval(() => { if (test()){ clearInterval(iv); res(); } }, 100); });
-  if (new URLSearchParams(location.search).has('dbg')) window.__chase = {car, sedan, key, SEG, get pS(){ return pS; }, get zone(){ return zone; }, get mode(){ return mode; }, run, boat, total};   // 確認用
+  if (new URLSearchParams(location.search).has('dbg')) window.__chase = {car, sedan, key, joy, SEG, get pS(){ return pS; }, get zone(){ return zone; }, get mode(){ return mode; }, run, boat, total};   // 確認用
 
   return {
     open(){ $('#pic').classList.add('out'); $('#bg').style.backgroundImage = 'none'; $('#tint').className = ''; $('#glow').classList.remove('on');
@@ -2006,7 +2059,7 @@ function makeChase(){
     // カーチェイス。埋立て地の行き止まりで終わる。{bumps, catches} を返す
     async drive(){
       mode = 'drive'; zone = ''; ct.textContent = 'ベントレーで逃げる'; chh.textContent = '';
-      cl.hidden = cr.hidden = false; cgo.textContent = 'アクセル'; sheet(true);
+      cl.hidden = cr.hidden = false; cgo.textContent = 'アクセル'; sh.querySelector('.drow').hidden = TOUCH; sheet(true);
       await wait(() => mode === 'arrive' && car.v < 5);
       await new Promise(r => setTimeout(r, 900)); sheet(false); caps = []; capNow = ''; chh.style.color = '';
       return {bumps, catches};
@@ -2014,7 +2067,7 @@ function makeChase(){
     // 走って白石漁港の船へ。連打で走る
     async run(){
       mode = 'run'; run.x = 0; run.men = -130; ct.textContent = '白石漁港の船へ走る'; chh.textContent = '「走る」を何度も押す。黒ずくめの男たちが追ってくる。';
-      cl.hidden = cr.hidden = true; cgo.textContent = '走る'; sheet(true);
+      cl.hidden = cr.hidden = true; cgo.textContent = '走る'; sh.querySelector('.drow').hidden = false; sheet(true);
       let caughtN = 0;
       runCaught = () => { caughtN++; flash = 1; run.men = run.x - 140; chh.textContent = '腕をつかまれかけた！ ふりほどいて、もう一度。'; };
       cgo.onpress = () => { run.x += 15; };
@@ -2024,7 +2077,7 @@ function makeChase(){
     // 船で港を出る。押しているあいだフルスロットル
     async boat(){
       mode = 'boat'; boat.y = 0; boat.v = 0; sparks = []; ct.textContent = '港を出る'; chh.textContent = '押しているあいだ、フルスロットル。';
-      cl.hidden = cr.hidden = true; cgo.textContent = 'フルスロットル'; sheet(true);
+      cl.hidden = cr.hidden = true; cgo.textContent = 'フルスロットル'; sh.querySelector('.drow').hidden = false; sheet(true);
       await wait(() => boat.y >= boat.need);
       sheet(false);
     },
