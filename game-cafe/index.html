@@ -129,6 +129,7 @@ button{touch-action:manipulation;-webkit-touch-callout:none}
 .drow2 .btn{text-align:center;padding:9px 8px;font-size:14px}
 .btn[disabled]{opacity:.35;pointer-events:none}
 #dpark:not([disabled]){border-color:var(--shu);background:rgba(237,109,70,.14)}
+#drive [hidden]{display:none!important}
 
 /* 大楠山の沢で砂金採り（canvas に沢・フルイ網・パンニング皿・陶器を描く） */
 #kawa{position:absolute;z-index:2;left:0;right:0;top:48px;bottom:0;display:none;overflow:hidden;touch-action:none;background:#1c1f1a}
@@ -863,10 +864,14 @@ function makeYard(){
     if (sup.on) sup.y += clamp(sup.to - sup.y, -150 * dt, 150 * dt);
     if (mode !== 'drive') return;
     const inLane = car.y < 40, vmax = inLane ? 130 : 215;
-    car.v = key.go ? Math.min(vmax, car.v + 150 * dt) : Math.max(0, car.v - 260 * dt);
+    const jdx = joy.x - joy.bx, jdy = joy.y - joy.by, jm = joy.on ? Math.min(1, Math.hypot(jdx, jdy) / JR) : 0;
+    const useJoy = jm > .18, fwd = useJoy && jdy < JR * .2;   // 手前に倒すとブレーキ
+    const want0 = fwd ? vmax * Math.min(1, jm * 1.1) : key.go && !useJoy ? vmax : 0;
+    car.v = car.v < want0 ? Math.min(want0, car.v + 150 * dt) : Math.max(want0, car.v - 260 * dt);
     if (car.v > vmax) car.v = Math.max(vmax, car.v - 300 * dt);
-    const st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
-    car.a = clamp(car.a + st * car.v / 95 * dt, -1.05, 1.05);
+    let st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
+    if (fwd){ const ta = clamp(Math.atan2(jdx, -jdy), -1.05, 1.05), dj = ta - car.a; st = Math.abs(dj) < .04 ? 0 : clamp(dj * 2.5, -1, 1); }
+    car.a = clamp(car.a + st * Math.max(car.v, 40) / 95 * dt, -1.05, 1.05);
     if (!st && inLane && car.v > 5) car.a *= Math.max(0, 1 - 1.6 * dt);          // レーンの中では、手を離すとまっすぐに戻る
     const nx = car.x + Math.sin(car.a) * car.v * dt, ny = car.y - Math.cos(car.a) * car.v * dt;
     if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; }
@@ -886,7 +891,7 @@ function makeYard(){
 
   function draw(){
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    const vh = H - pad, cx = W / 2, cy = vh * .64;
+    const vh = H - pad, cx = W / 2, cy = vh * (TOUCH ? .56 : .64);
     const camX = W / sc >= WW ? WW / 2 : clamp(car.x, W / sc / 2, WW - W / sc / 2), camY = car.y;
     const y0 = camY - cy / sc, y1 = camY + (H - cy) / sc, x0 = camX - cx / sc, x1 = camX + cx / sc;
     ctx.fillStyle = '#2e3338'; ctx.fillRect(0, 0, W, H);
@@ -981,6 +986,15 @@ function makeYard(){
       }
     }
     if (flash > 0){ ctx.fillStyle = `rgba(200,50,30,${flash * .35})`; ctx.fillRect(0, 0, W, H); }
+    // ジョイスティック（スマホ）
+    if (mode === 'drive' && (TOUCH || joy.on)){
+      const bx = joy.on ? joy.bx : 22 + JR, by = joy.on ? joy.by : vh - 22 - JR, kx = joy.on ? joy.x : bx, ky = joy.on ? joy.y : by;
+      ctx.fillStyle = `rgba(239,232,218,${joy.on ? .14 : .08})`; ctx.strokeStyle = `rgba(239,232,218,${joy.on ? .55 : .3})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by, JR, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = joy.on ? 'rgba(237,109,70,.9)' : 'rgba(237,109,70,.45)'; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, 7); ctx.stroke();
+      if (!joy.on){ ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(239,232,218,.75)'; ctx.fillText('指を置いて、行く向きへ倒す（手前でブレーキ）', bx + JR + 10, by + 4); }
+    }
     if (white > 0){ ctx.fillStyle = `rgba(232,237,240,${white})`; ctx.fillRect(0, 0, W, H); }
   }
   const loop = now => {
@@ -997,11 +1011,24 @@ function makeYard(){
     b.onpointerdown = on; b.onpointerup = b.onpointercancel = b.onlostpointercapture = off; b.oncontextmenu = e => e.preventDefault();
   };
   hold($('#dl'), 'l'); hold($('#dr'), 'r'); hold($('#dgo'), 'go');
+  // 仮想ジョイスティック（スマホ）。画面に指を置くとそこに輪が出る。前の向きへ倒すとそちらへ切って進む。手前へ倒す・離すとブレーキ（バックは無い）
+  const TOUCH = matchMedia('(pointer: coarse)').matches, JR = 58;
+  const joy = {on:false, id:null, bx:0, by:0, x:0, y:0};
+  el.addEventListener('pointerdown', e => {
+    if (mode !== 'drive') return;
+    const r = el.getBoundingClientRect(), vh = H - pad; e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {}
+    joy.on = true; joy.id = e.pointerId; joy.bx = joy.x = clamp(e.clientX - r.left, JR + 8, W - JR - 8); joy.by = joy.y = clamp(e.clientY - r.top, JR + 8, vh - JR - 8);
+  });
+  el.addEventListener('pointermove', e => { if (!joy.on || e.pointerId !== joy.id) return; const r = el.getBoundingClientRect();
+    let dx = e.clientX - r.left - joy.bx, dy = e.clientY - r.top - joy.by; const d = Math.hypot(dx, dy); if (d > JR){ dx *= JR / d; dy *= JR / d; }
+    joy.x = joy.bx + dx; joy.y = joy.by + dy; });
+  const joyOff = e => { if (joy.on && (!e || e.pointerId === joy.id)){ joy.on = false; joy.x = joy.bx; joy.y = joy.by; } };
+  el.addEventListener('pointerup', joyOff); el.addEventListener('pointercancel', joyOff);
   const KEYS = {ArrowLeft:'l', a:'l', ArrowRight:'r', d:'r', ArrowUp:'go', w:'go'};
   const kd = e => { if (mode === 'drive' && KEYS[e.key]){ e.preventDefault(); key[KEYS[e.key]] = true; } };
   const ku = e => { if (KEYS[e.key]) key[KEYS[e.key]] = false; };
   el.onclick = () => { if (mode !== 'drive') step(); };
-  if (new URLSearchParams(location.search).has('dbg')) window.__yard = {car, key, E, laneX, TL, BASE};   // 確認用
+  if (new URLSearchParams(location.search).has('dbg')) window.__yard = {car, key, joy, E, laneX, TL, BASE};   // 確認用
 
   return {
     zen,
@@ -1017,7 +1044,7 @@ function makeYard(){
     drive(n){
       clear(); bumps = 0; hand = false; car.hidden = false; key.l = key.r = key.go = false;
       $('#dslip').textContent = `Ａ${zen(A0 + n)} → Ｄ${zen((21 + TL) * 100 + BASE[TL])}`;
-      hintNow = ''; $('#dpark').disabled = true; sh.classList.add('on'); $('#box').style.visibility = 'hidden'; mode = 'drive'; fit();
+      hintNow = ''; $('#dpark').disabled = true; sh.querySelector('.drow').hidden = TOUCH; sh.classList.add('on'); $('#box').style.visibility = 'hidden'; mode = 'drive'; fit();
       return new Promise(res => {
         const end = r => {
           onScrape = null; mode = 'idle'; car.v = 0; key.l = key.r = key.go = false; sh.classList.remove('on'); $('#box').style.visibility = '';
