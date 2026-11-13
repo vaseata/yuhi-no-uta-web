@@ -218,7 +218,12 @@ button{touch-action:manipulation;-webkit-touch-callout:none}
 .place .soon{display:inline-block;margin-top:10px;font-size:12px;color:var(--dim);border:1px dashed var(--line);padding:5px 10px;letter-spacing:.1em}
 .mattr{font-size:10px;color:var(--dim);margin-top:16px}
 .mattr a{color:inherit}
-#tomap{margin-left:14px;font-size:12px;letter-spacing:.12em;border:1px solid var(--line);padding:4px 10px;color:var(--dim)}
+#hud .t{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#clock{flex:none}
+#skip{flex:none;margin-left:10px;font-size:12px;letter-spacing:.1em;border:1px solid var(--line);padding:4px 10px;color:var(--dim)}
+#skip.on{border-color:var(--shu);color:#fff;background:rgba(237,109,70,.35)}
+#skip + #tomap{margin-left:8px}
+#tomap{flex:none;margin-left:14px;font-size:12px;letter-spacing:.12em;border:1px solid var(--line);padding:4px 10px;color:var(--dim)}
 
 @media (min-width:900px){ :root{--boxh:30vh} }
 /* スマホ（読者の7割）。親指で押しやすい大きさに、板は低めにして絵を広く */
@@ -248,6 +253,7 @@ button{touch-action:manipulation;-webkit-touch-callout:none}
     <svg class="yk" aria-hidden="true"><use href="#yk"/></svg>
     <span class="t" id="place">黄色いテントの喫茶店</span>
     <span id="clock"></span>
+    <button id="skip" type="button" hidden aria-pressed="false">▶▶ とばす</button>
     <button id="tomap" type="button">地図</button>
   </header>
 
@@ -420,7 +426,9 @@ button{touch-action:manipulation;-webkit-touch-callout:none}
 <script>
 (() => {
 const $ = s => document.querySelector(s);
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// ストーリーをとばす（何度も遊ぶ人のため）。とばしているあいだは文を待たずに進め、ひとつだけの［行動］は自動で選ぶ。ゲームは遊ぶ
+const SKIP = {on:false};
+const sleep = ms => new Promise(r => setTimeout(r, SKIP.on ? Math.min(ms, 120) : ms));
 if (new URLSearchParams(location.search).has('mark')) document.body.classList.add('mark');
 
 // ── 場面 ─────────────────────────────
@@ -459,6 +467,7 @@ function say(who, text, book = false){
   const neko = who === 'おにゃんどん' || who === '？';
   $('#who').textContent = who || ''; $('#who').className = neko ? 'neko' : '';
   const t = $('#txt'); t.className = (neko ? 'neko ' : '') + (book ? 'book' : '');
+  if (SKIP.on){ t.textContent = text; return new Promise(r => setTimeout(r, 60)); }
   return new Promise(res => {
     let i = 0; const chars = [...text];
     typing = () => { i = chars.length; t.textContent = text; };
@@ -472,6 +481,7 @@ function say(who, text, book = false){
 const N = (text, book) => say(null, text, book);         // 地の文
 function choose(opts){                                   // 選ぶ。押した番号を返す
   $('#next').classList.remove('on');
+  if (SKIP.on && opts.length === 1) return Promise.resolve(0);   // とばしているときは、ひとつだけの［行動］は自動で
   return new Promise(res => {
     const box = $('#choices'); box.innerHTML = '';
     opts.forEach((o, i) => {
@@ -2621,23 +2631,29 @@ function drawMap(){
 }
 function showMap(){
   clear(); $('#end').classList.add('hide'); drawMap(); $('#start').classList.remove('hide');
-  $('#tomap').hidden = true;
+  $('#tomap').hidden = true; skipOff(); $('#skip').hidden = true;
   $('#pic').src = 'assets/img007.jpg'; $('#bg').style.backgroundImage = 'url(assets/img007.jpg)'; $('#tint').className = 'asa';
 }
 async function playOne(id){
-  $('#start').classList.add('hide'); $('#tomap').hidden = false;
+  $('#start').classList.add('hide'); $('#tomap').hidden = false; $('#skip').hidden = false;
   await PARTS[id](); markPlayed(id); showMap();
 }
-$('#go').onclick = async () => { $('#start').classList.add('hide'); $('#tomap').hidden = false; await day(); ORDER.forEach(markPlayed); };
+$('#go').onclick = async () => { $('#start').classList.add('hide'); $('#tomap').hidden = false; $('#skip').hidden = false; await day(); ORDER.forEach(markPlayed); };
 $('#again').onclick = showMap;
 // 遊んでいる途中で地図へ戻るときは、読み込みなおして始めの状態にする
+function skipOff(){ SKIP.on = false; $('#skip').classList.remove('on'); $('#skip').textContent = '▶▶ とばす'; $('#skip').setAttribute('aria-pressed', 'false'); }
+$('#skip').onclick = e => { e.stopPropagation();
+  if (SKIP.on){ skipOff(); return; }
+  SKIP.on = true; $('#skip').classList.add('on'); $('#skip').textContent = '■ やめる'; $('#skip').setAttribute('aria-pressed', 'true');
+  step(); setTimeout(step, 80);   // いま待っている文も進める
+};
 $('#tomap').onclick = () => { location.href = location.pathname + location.search.replace(/[?&]ba=[^&]*/, ''); };
 
 showMap();
 // ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）。?ba=oppama は追浜だけ
 const baKey = new URLSearchParams(location.search).get('ba'), ba = ORDER.indexOf(baKey);
 if (['oppama', 'sakin', 'ika', 'chase'].includes(baKey)) playOne(baKey);
-else if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
+else if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; $('#skip').hidden = false; day(ba); }
 })();
 </script>
 </body>
