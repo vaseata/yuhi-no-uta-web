@@ -143,6 +143,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 #ika [hidden]{display:none!important}
 #ika .drow2 #il,#ika .drow2 #ir{flex:none;width:64px}
 
+/* ベントレーで逃げる（城ヶ島から三崎の海へ。上から見た道を canvas に描く） */
+#michi{position:absolute;z-index:2;left:0;right:0;top:48px;bottom:0;display:none;overflow:hidden;touch-action:none;background:#2c3a44}
+#michi.on{display:block}
+#michi canvas{position:absolute;inset:0;width:100%;height:100%}
+#chase [hidden]{display:none!important}
+.drow #cgo{flex:1;padding:16px}
+
 /* なでる */
 #pet{position:absolute;z-index:4;inset:48px 0 var(--boxh,34vh) 0;display:none;cursor:pointer;touch-action:none}
 #pet.on{display:block}
@@ -237,6 +244,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <div id="yard" aria-label="追浜の車両集積所"><canvas></canvas></div>
   <div id="kawa" aria-label="大楠山の沢"><canvas></canvas></div>
   <div id="umi" aria-label="夜の海"><canvas></canvas></div>
+  <div id="michi" aria-label="城ヶ島と三崎の道"><canvas></canvas></div>
 
   <section id="box" aria-live="polite">
     <div id="who"></div>
@@ -308,6 +316,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <button class="btn" id="il" type="button" aria-label="左へ">◀</button>
       <button class="btn" id="ix" type="button">巻いて回収</button>
       <button class="btn" id="ir" type="button" aria-label="右へ">▶</button>
+    </div>
+  </section>
+
+  <!-- ベントレーで逃げる -->
+  <section id="chase" class="sheet" aria-label="ベントレーで逃げる">
+    <h3 id="ct"></h3>
+    <p class="hint" id="ch"></p>
+    <div class="drow">
+      <button class="big dk" id="cl" type="button" aria-label="ハンドルを左へ">◀</button>
+      <button class="big dk" id="cr" type="button" aria-label="ハンドルを右へ">▶</button>
+      <button class="big" id="cgo" type="button">アクセル</button>
     </div>
   </section>
 
@@ -1661,6 +1680,318 @@ function makeUmi(){
   };
 }
 
+// ── ベントレーで逃げる。黒いセダンに追われて、商店街 → 城ヶ島大橋 → 灘が崎 → 活け簀の堤防 → 再び大橋 → 三崎下町 → 本港 → 埋立て地。
+//    そこから走って白石漁港の船へ、船で港を出る。上から見た道（北が上）。drive() / run() / boat() / yuyake() ──
+function makeChase(){
+  const el = $('#michi'), cv = el.querySelector('canvas'), ctx = cv.getContext('2d'), sh = $('#chase');
+  const ct = $('#ct'), chh = $('#ch'), cl = $('#cl'), cr = $('#cr'), cgo = $('#cgo');
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  let W = 1, H = 1, vh = 1, raf = 0, last = 0, t = 0, mode = 'idle', shake = 0, flash = 0;
+  const fit = () => { const r = el.getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * DPR; cv.height = H * DPR; };
+  const sheet = on => { sh.classList.toggle('on', on); $('#box').style.visibility = on ? 'hidden' : ''; };
+  el.onclick = () => { if (!sh.classList.contains('on')) step(); };
+  const key = {l:false, r:false, go:false};
+  const hold = (b, k) => {
+    b.onpointerdown = e => { e.preventDefault(); key[k] = true; b.classList.add('down'); try { b.setPointerCapture(e.pointerId); } catch (x) {} if (b.onpress) b.onpress(); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => { key[k] = false; b.classList.remove('down'); };
+    b.oncontextmenu = e => e.preventDefault();
+  };
+  hold(cl, 'l'); hold(cr, 'r'); hold(cgo, 'go');
+  const KEYS = {ArrowLeft:'l', a:'l', ArrowRight:'r', d:'r', ArrowUp:'go', w:'go'};
+  const kd = e => { if (KEYS[e.key] && sh.classList.contains('on')){ e.preventDefault(); key[KEYS[e.key]] = true; } };
+  const ku = e => { if (KEYS[e.key]) key[KEYS[e.key]] = false; };
+
+  // 道（点の列。各点がその先の区間の名前と幅を持つ）
+  const R = [
+    [0, 0, 'shotengai', 66], [0, -640, 'kado', 80], [60, -760, 'kado', 90], [150, -860, 'bridge', 96],
+    [150, -1600, 'nada', 92], [140, -1700, 'nada', 92], [100, -1780, 'nada', 92], [30, -1830, 'nada', 92], [-60, -1862, 'nada', 92], [-140, -1905, 'nada', 92], [-170, -1985, 'nada', 92],
+    [-170, -2300, 'ikesu', 92], [480, -2300, 'bridge2', 96], [480, -3100, 'shitamachi', 80], [120, -3100, 'shitamachi', 80],
+    [120, -3600, 'port', 150], [760, -3600, 'umetate', 210], [760, -4040, 'end', 210],
+  ];
+  const SEG = []; let total = 0;
+  for (let i = 0; i < R.length - 1; i++){
+    const [x0, y0, z, w] = R[i], [x1, y1] = R[i + 1], L = Math.hypot(x1 - x0, y1 - y0);
+    SEG.push({x0, y0, x1, y1, z, w, L, s:total, a:Math.atan2(x1 - x0, -(y1 - y0))}); total += L;
+  }
+  const BASE = {shotengai:120, kado:135, bridge:160, nada:135, ikesu:150, bridge2:165, shitamachi:155, port:140, umetate:100, end:80};
+  const VMAX = {shotengai:140, kado:160, bridge:200, nada:180, ikesu:185, bridge2:200, shitamachi:170, port:160, umetate:120, end:100};
+  // 区間に入ったときの字幕（本文）
+  const CAP = {
+    shotengai:['狭い商店街を黒いセダンを振り切ろうとスピードを上げて走った。', '黒いセダンは追いかけてきた。'],
+    kado:['「これはちょっとまずいですね……」大谷さんが言った。'],
+    bridge:['追跡を振り切ろうと方向を変えて城ヶ島大橋を渡った。'],
+    nada:['急な左カーブをタイヤを軋ませて走り抜けて灘が崎方面へ向かった。', 'それでもバックミラーには黒いセダンが見えた。', '観光客たちは映画かドラマの撮影と思ったか、猛スピードで走る二台のカーチェイスを道を開けて眺めていた。'],
+    ikesu:['突きあたりを直角に右折して活け簀の並ぶ堤防沿いを水飛沫をあげて走った。', '大谷さんは助手席で足を突っ張って腰を浮かせていた。', '御代川会長は後部座席で腹をくくった表情で目を閉じていた。'],
+    bridge2:['再び城ヶ島大橋を渡り国道を目指したが、渋滞をしているので三崎下町へ迂回した。'],
+    shitamachi:['黒いセダンがいよいよ車間を詰めてきた。'],
+    port:['急ハンドルを切り、マグロの水揚げをしている三崎本港に入り大型トラックの車列を走り抜けて荒れ地になっている立入禁止の埋立て地に逃げ込んだ。'],
+    umetate:['追走する黒いセダンには四人の黒ずくめの男たちが乗っていた。'],
+  };
+  const PLACE = {shotengai:'三崎・商店街', kado:'三崎', bridge:'城ヶ島大橋', nada:'城ヶ島・灘が崎', ikesu:'城ヶ島・活け簀の堤防', bridge2:'城ヶ島大橋', shitamachi:'三崎下町', port:'三崎本港', umetate:'埋立て地', end:'埋立て地'};
+  // ぶつかるもの（四角）。段ボール・大型トラック・埋立て地の岩
+  const OBS = [
+    {x:-23, y:-230, w:18, h:18, c:'#b08a5a'}, {x:23, y:-420, w:18, h:18, c:'#b08a5a'}, {x:-24, y:-560, w:16, h:22, c:'#6a7a8a'},   // 店先の段ボールと自転車（道の端）
+    {x:250, y:-3632, w:92, h:34, c:'#d8d4cc', truck:1}, {x:340, y:-3566, w:92, h:34, c:'#c9cfd4', truck:1}, {x:450, y:-3634, w:92, h:34, c:'#d8d4cc', truck:1},
+    {x:545, y:-3564, w:92, h:34, c:'#c9cfd4', truck:1}, {x:650, y:-3630, w:92, h:34, c:'#d8d4cc', truck:1},
+    {x:700, y:-3760, w:30, h:26, c:'#6b5a44'}, {x:820, y:-3880, w:34, h:28, c:'#6b5a44'}, {x:730, y:-3960, w:28, h:24, c:'#6b5a44'},
+  ];
+  // 道ばたの人（観光客・商店街の人）と猫。近づくとよける
+  const PEO = [];
+  for (let i = 0; i < 9; i++) PEO.push({x:(i % 2 ? 26 : -26), y:-60 - i * 66, kind:i % 3 === 0 ? 'neko' : 'hito', dx:0});
+  [[160, -1640], [120, -1735], [60, -1800], [-20, -1840], [-100, -1880]].forEach(([x, y], i) => PEO.push({x:x + (i % 2 ? 42 : -42), y, kind:'hito', dx:0, tour:1}));
+  const IKESU = Array.from({length:9}, (_, i) => ({x:-120 + i * 68, y:-2390}));
+  const PUD = Array.from({length:8}, (_, i) => ({x:-120 + i * 75, y:-2300 + (i % 2 ? 18 : -18)}));
+
+  const car = {x:0, y:-30, a:0, v:0};
+  const sedan = {s:-160, go:false};   // go＝アクセルを押すまでセダンは待つ
+  let pSeg = 0, pS = 0, zone = 'shotengai', bumps = 0, catches = 0, caps = [], capT = 0, capNow = '', sparks = [];
+  // 道のうえか（区間までの距離が幅の半分より内側）。近い区間の番号も返す
+  function nearest(x, y, from){
+    let best = {d:1e9, i:0, u:0};
+    for (let i = Math.max(0, from - 2); i < Math.min(SEG.length, from + 3); i++){
+      const g = SEG[i], dx = g.x1 - g.x0, dy = g.y1 - g.y0, u = clamp(((x - g.x0) * dx + (y - g.y0) * dy) / (g.L * g.L), 0, 1);
+      const d = Math.hypot(x - (g.x0 + dx * u), y - (g.y0 + dy * u)) - g.w / 2;
+      if (d < best.d) best = {d, i, u};
+    }
+    return best;
+  }
+  const at = s => { let i = SEG.findIndex(g => s < g.s + g.L); if (i < 0) i = SEG.length - 1; if (s < 0) i = 0; const g = SEG[i], u = clamp((s - g.s) / g.L, -2, 1);
+    return {x:g.x0 + (g.x1 - g.x0) * u, y:g.y0 + (g.y1 - g.y0) * u, a:g.a, z:g.z}; };
+  const hitObs = (x, y) => OBS.some(o => Math.abs(x - o.x) < o.w / 2 && Math.abs(y - o.y) < o.h / 2);
+  const corners = (x, y, a) => { const c = Math.cos(a), s = Math.sin(a); return [[-10, -21], [10, -21], [-10, 21], [10, 21], [0, -22]].map(([dx, dy]) => [x + dx * c - dy * s, y + dx * s + dy * c]); };
+  const blocked = (x, y, a) => corners(x, y, a).some(([px, py]) => nearest(px, py, pSeg).d > -1 || hitObs(px, py));
+
+  function caption(lines){ caps.push(...lines); }
+  function bump(){ bumps++; shake = .35; car.v *= .3; for (let i = 0; i < 8; i++) sparks.push({x:car.x + rnd(-10, 10), y:car.y - 20, vx:rnd(-90, 90), vy:rnd(-90, 30), t:0}); }
+
+  function update(dt){
+    t += dt; shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt * 1.5);
+    sparks.forEach(p => { p.t += dt * 2; p.x += p.vx * dt; p.y += p.vy * dt; }); sparks = sparks.filter(p => p.t < 1);
+    if (caps.length && capT <= 0){ capNow = caps.shift(); capT = Math.max(2.8, capNow.length * .085); }
+    capT -= dt; if (capT <= 0 && !caps.length) capNow = '';
+    if (mode === 'drive'){
+      const vmax = VMAX[zone] || 200;
+      car.v = key.go ? Math.min(vmax, car.v + 220 * dt) : Math.max(0, car.v - 160 * dt);
+      if (car.v > vmax) car.v = Math.max(vmax, car.v - 300 * dt);
+      const st = (key.r ? 1 : 0) - (key.l ? 1 : 0);
+      car.a += st * 2.5 * dt * Math.min(1, car.v / 90);
+      const nx = car.x + Math.sin(car.a) * car.v * dt, ny = car.y - Math.cos(car.a) * car.v * dt;
+      if (!blocked(nx, ny, car.a)){ car.x = nx; car.y = ny; } else if (car.v > 40) bump(); else car.v = 0;
+      const n = nearest(car.x, car.y, pSeg); pSeg = n.i; pS = SEG[n.i].s + n.u * SEG[n.i].L;
+      const z = SEG[pSeg].z;
+      if (z !== zone){ zone = z; caps = []; if (capNow) capT = Math.min(capT, 1.2); if (CAP[z]) caption(CAP[z]);   // 前の区間の残りの字幕は捨てる
+        $('#place').textContent = PLACE[z] || ''; }
+      // 黒いセダン
+      if (key.go) sedan.go = true;
+      const gap = pS - sedan.s, base = BASE[zone] || 160;
+      if (!sedan.go){ chh.textContent = 'アクセルを押して、出す。◀ ▶ でハンドル。'; return; }
+      const ve = base + (gap > 380 ? 120 : gap > 260 ? 40 : 0) - (gap < 90 ? 60 : 0);
+      sedan.s += ve * dt;
+      chh.textContent = `黒いセダンとの車間　約${Math.max(0, Math.round((gap - 46) / 8))}メートル`;
+      chh.style.color = gap < 110 ? '#ED6D46' : '';
+      if (gap < 46) caught();
+      if (pS > total - 70) mode = 'arrive';
+    }
+    if (mode === 'arrive'){ car.v = Math.max(0, car.v - 300 * dt); car.x += Math.sin(car.a) * car.v * dt; car.y -= Math.cos(car.a) * car.v * dt; sedan.s += Math.max(0, (pS - 90 - sedan.s)) * dt * 2; }
+    if (mode === 'run') runUpdate(dt);
+    if (mode === 'boat') boatUpdate(dt);
+  }
+  function caught(){
+    catches++; flash = 1;
+    const g = SEG.findIndex(q => q.z === zone), s0 = SEG[g].s + 40, p = at(s0);
+    car.x = p.x; car.y = p.y; car.a = p.a; car.v = 0; pSeg = g; pS = s0; sedan.s = s0 - 260; sedan.go = false;
+    caps = []; capNow = ''; caption(['……危なかった。追いつかれる寸前で、間をあけた。']);
+  }
+
+  // ── 描く ──
+  function drawWorld(){
+    const sc = clamp(W / 420, .78, 1.2), look = 90;
+    const cx0 = car.x + Math.sin(car.a) * look, cy0 = car.y - Math.cos(car.a) * look;
+    const sx = (Math.random() - .5) * shake * 20, sy = (Math.random() - .5) * shake * 20;
+    ctx.save(); ctx.translate(W / 2 + sx, vh * .55 + sy); ctx.scale(sc, sc); ctx.translate(-cx0, -cy0);
+    const x0 = cx0 - W / sc, x1 = cx0 + W / sc, y0 = cy0 - vh / sc, y1 = cy0 + vh / sc;
+    // 海と陸（三崎の陸・城ヶ島・向こう岸）
+    ctx.fillStyle = '#2f5566'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.strokeStyle = 'rgba(220,235,240,.18)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 60; i++){ const wx = Math.floor(x0 / 90) * 90 + (i % 10) * 90 + ((t * 12) % 90), wy = Math.floor(y0 / 70) * 70 + Math.floor(i / 10) * 70 * 2; ctx.beginPath(); ctx.moveTo(wx, wy); ctx.quadraticCurveTo(wx + 10, wy - 5, wx + 20, wy); ctx.stroke(); }
+    ctx.fillStyle = '#3a3d36';
+    [[-2000, -880, 4000, 3000], [-2000, -2330, 4000, 760], [-2000, -6000, 4000, 2930]].forEach(([x, y, w, h]) => ctx.fillRect(x, y, w, h));
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    // 道
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    SEG.forEach(g => { ctx.strokeStyle = g.z === 'umetate' || g.z === 'end' ? '#6b6250' : g.z.startsWith('bridge') ? '#55595c' : '#4c4f52';
+      ctx.lineWidth = g.w; ctx.beginPath(); ctx.moveTo(g.x0, g.y0); ctx.lineTo(g.x1, g.y1); ctx.stroke(); });
+    // 橋の欄干
+    SEG.filter(g => g.z.startsWith('bridge')).forEach(g => { ctx.strokeStyle = '#c9c4b8'; ctx.lineWidth = 3;
+      [-1, 1].forEach(k => { ctx.beginPath(); ctx.moveTo(g.x0 + k * g.w / 2, g.y0 - 20); ctx.lineTo(g.x1 + k * g.w / 2, g.y1 + 20); ctx.stroke(); }); });
+    // 中央線
+    ctx.setLineDash([16, 18]); ctx.strokeStyle = 'rgba(240,220,160,.55)'; ctx.lineWidth = 2;
+    SEG.forEach(g => { if (g.z === 'umetate' || g.z === 'end' || g.z === 'shotengai') return; ctx.beginPath(); ctx.moveTo(g.x0, g.y0); ctx.lineTo(g.x1, g.y1); ctx.stroke(); });
+    ctx.setLineDash([]);
+    // 商店街の店（両側）
+    for (let y = -20; y > -640; y -= 54){ [[-1, '#7a5a3a'], [1, '#5a6a7a']].forEach(([k, c], j) => {
+      ctx.fillStyle = c; ctx.fillRect(k > 0 ? 34 : -34 - 60, y - 48, 60, 48);
+      ctx.fillStyle = ['#e8c34a', '#ED6D46', '#d8d0c0', '#6a9a8a'][Math.abs(Math.round(y / 54) + j) % 4]; ctx.fillRect(k > 0 ? 34 : -40, y - 48, 6, 48); }); }
+    // 電線
+    ctx.strokeStyle = 'rgba(20,20,20,.5)'; ctx.lineWidth = 1; for (let y = -60; y > -640; y -= 120){ ctx.beginPath(); ctx.moveTo(-60, y); ctx.lineTo(60, y - 30); ctx.stroke(); }
+    // 活け簀と水たまり
+    IKESU.forEach(k => { ctx.strokeStyle = '#a89a7a'; ctx.lineWidth = 3; ctx.strokeRect(k.x - 22, k.y - 18, 44, 36); ctx.fillStyle = 'rgba(80,140,150,.6)'; ctx.fillRect(k.x - 20, k.y - 16, 40, 32); });
+    PUD.forEach(p => { ctx.fillStyle = 'rgba(110,150,170,.5)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 22, 9, 0, 0, 7); ctx.fill(); });
+    // 国道の渋滞（まっすぐ先はふさがっている）
+    ctx.strokeStyle = '#4c4f52'; ctx.lineWidth = 90; ctx.beginPath(); ctx.moveTo(480, -3140); ctx.lineTo(480, -3420); ctx.stroke();
+    for (let i = 0; i < 6; i++) drawCar(480 + (i % 2 ? 18 : -18), -3170 - i * 50, 0, ['#d8d4cc', '#8a9aa8', '#c94a3a', '#e9e6dc'][i % 4]);
+    ctx.fillStyle = '#efe8da'; ctx.font = '600 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('国道　渋滞', 480, -3132);
+    // 三崎下町の家並み
+    for (let y = -3140; y > -3580; y -= 50){ ctx.fillStyle = '#5c5048'; ctx.fillRect(170, y - 44, 50, 44); ctx.fillRect(20, y - 44, 58, 44); }
+    // 本港（マグロの水揚げ）と、埋立て地の柵
+    ctx.fillStyle = '#efe8da'; ctx.font = '600 13px sans-serif'; ctx.fillText('三崎本港', 300, -3700); ctx.fillText('立入禁止', 760, -4080);
+    ctx.strokeStyle = '#c9c4b8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(650, -4060); ctx.lineTo(870, -4060); ctx.stroke();
+    for (let x = 655; x < 870; x += 14){ ctx.beginPath(); ctx.moveTo(x, -4060); ctx.lineTo(x, -4076); ctx.stroke(); }
+    // 地名
+    ctx.fillStyle = 'rgba(239,232,218,.35)'; ctx.font = '600 22px sans-serif';
+    [['三崎', 120, -300], ['城ヶ島', -60, -2120], ['城ヶ島大橋', 260, -1250], ['城ヶ島大橋', 590, -2700], ['三崎', 300, -3300]].forEach(([s, x, y]) => ctx.fillText(s, x, y));
+    // ぶつかるもの
+    OBS.forEach(o => { if (o.x < x0 - 100 || o.x > x1 + 100) return; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(o.x - o.w / 2 + 3, o.y - o.h / 2 + 4, o.w, o.h);
+      ctx.fillStyle = o.c; ctx.fillRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
+      if (o.truck){ ctx.fillStyle = '#3a6a8a'; ctx.fillRect(o.x + o.w / 2 - 20, o.y - o.h / 2, 20, o.h); ctx.fillStyle = '#23272b'; ctx.font = '700 10px sans-serif'; ctx.fillText('冷凍マグロ', o.x - 10, o.y + 4); } });
+    // 人と猫
+    PEO.forEach(p => {
+      const d = Math.hypot(car.x - p.x, car.y - p.y);
+      if (d < 120) p.dx += (Math.sign(p.x - car.x || 1) * 34 - p.dx) * .08;   // 道をあける
+      const x = p.x + p.dx, y = p.y;
+      if (p.kind === 'neko'){ ctx.fillStyle = '#1a1714'; ctx.beginPath(); ctx.ellipse(x, y, 6, 4, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(x + 6, y - 2, 3, 0, 7); ctx.fill(); }
+      else { ctx.fillStyle = p.tour ? ['#e8c34a', '#ED6D46', '#6a9a8a'][Math.abs(Math.round(p.y)) % 3] : '#b9ad98'; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.fillStyle = '#2a2520'; ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill();
+        if (p.tour){ ctx.fillStyle = '#efe8da'; ctx.fillRect(x + 4, y - 7, 5, 4); } }   // スマホを向ける
+    });
+    // 黒いセダンとベントレー
+    if (mode === 'drive' || mode === 'arrive'){ const e = at(sedan.s); drawCar(e.x, e.y, e.a, '#121418', {sedan:1}); }
+    // 水飛沫
+    if (zone === 'ikesu' && car.v > 60) PUD.forEach(p => { if (Math.hypot(car.x - p.x, car.y - p.y) < 30) for (let i = 0; i < 4; i++) sparks.push({x:car.x + rnd(-14, 14), y:car.y, vx:rnd(-160, 160), vy:rnd(-80, 80), t:0, w:1}); });
+    if (mode !== 'run' && mode !== 'boat') drawCar(car.x, car.y, car.a, '#2c3e3a', {me:1});
+    sparks.forEach(p => { ctx.fillStyle = p.w ? `rgba(220,235,245,${1 - p.t})` : `rgba(255,200,120,${1 - p.t})`; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 7); ctx.fill(); });
+    ctx.restore();
+  }
+  function drawCar(x, y, a, col, o = {}){
+    const L = o.me ? 46 : 42, Wd = 21;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    if (o.me || o.sedan){ const g = ctx.createLinearGradient(0, -L / 2, 0, -L / 2 - 90); g.addColorStop(0, 'rgba(255,236,190,.35)'); g.addColorStop(1, 'rgba(255,236,190,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-8, -L / 2); ctx.lineTo(-26, -L / 2 - 90); ctx.lineTo(26, -L / 2 - 90); ctx.lineTo(8, -L / 2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-Wd / 2 + 3, -L / 2 + 4, Wd, L);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-Wd / 2, -L / 2 + 5); ctx.quadraticCurveTo(-Wd / 2, -L / 2, -Wd / 2 + 5, -L / 2); ctx.lineTo(Wd / 2 - 5, -L / 2); ctx.quadraticCurveTo(Wd / 2, -L / 2, Wd / 2, -L / 2 + 5);
+    ctx.lineTo(Wd / 2, L / 2 - 4); ctx.lineTo(-Wd / 2, L / 2 - 4); ctx.closePath(); ctx.fill(); ctx.fillRect(-Wd / 2, L / 2 - 5, Wd, 5);
+    ctx.fillStyle = 'rgba(20,26,32,.8)'; ctx.fillRect(-Wd / 2 + 3, -L * .2, Wd - 6, L * .12); ctx.fillRect(-Wd / 2 + 3, L * .22, Wd - 6, L * .1);
+    ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(-Wd / 2 + 3, -L * .07, Wd - 6, L * .28);
+    if (o.me){ ctx.fillStyle = '#c9b48f'; ctx.fillRect(-2, -L / 2, 4, 6); ctx.strokeStyle = 'rgba(237,109,70,.9)'; ctx.lineWidth = 1.4; ctx.strokeRect(-Wd / 2, -L / 2, Wd, L); }
+    ctx.fillStyle = '#fff3cf'; ctx.fillRect(-Wd / 2 + 2, -L / 2, 5, 2); ctx.fillRect(Wd / 2 - 7, -L / 2, 5, 2);
+    ctx.restore();
+  }
+  // 走って逃げる（横から）
+  const run = {x:0, men:-130, need:330, taps:0};
+  function runUpdate(dt){ if (!sh.classList.contains('on')) return; run.men += 46 * dt; if (run.men > run.x - 8) runCaught(); }
+  let runCaught = () => {};
+  function drawRun(){
+    const gy = vh * .66, k = (W - 60) / (run.need + 60), ox = 30 + 50 * k;
+    ctx.fillStyle = '#5a4e3c'; ctx.fillRect(0, 0, W, vh); ctx.fillStyle = '#2f5566'; ctx.fillRect(0, 0, W, vh * .28);
+    ctx.fillStyle = '#6b6250'; ctx.fillRect(0, gy, W, vh - gy);
+    // 白石漁港の船
+    const bx = ox + run.need * k; ctx.fillStyle = '#efe8da'; ctx.beginPath(); ctx.moveTo(bx - 30, vh * .28 - 4); ctx.lineTo(bx + 34, vh * .28 - 4); ctx.lineTo(bx + 24, vh * .28 + 10); ctx.lineTo(bx - 22, vh * .28 + 10); ctx.fill();
+    ctx.fillStyle = '#c9c4b8'; ctx.fillRect(bx - 6, vh * .28 - 22, 16, 18);
+    ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#efe8da'; ctx.fillText('白石漁港', bx, vh * .28 - 30);
+    // 乗り捨てたベントレー
+    ctx.fillStyle = '#2c3e3a'; ctx.fillRect(ox - 60, gy - 22, 52, 18);
+    const fig = (x, col, ph) => { ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x, gy - 48, 6, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(x, gy - 40); ctx.lineTo(x, gy - 20);
+      ctx.moveTo(x, gy - 20); ctx.lineTo(x + Math.sin(ph) * 9, gy); ctx.moveTo(x, gy - 20); ctx.lineTo(x - Math.sin(ph) * 9, gy);
+      ctx.moveTo(x, gy - 36); ctx.lineTo(x + Math.cos(ph) * 9, gy - 26); ctx.stroke(); };
+    // 会長・大谷さん・僕と、黒ずくめの男たち
+    fig(ox + run.x * k, '#ED6D46', run.x / 9); fig(ox + run.x * k - 16, '#c9b48f', run.x / 9 + 1); fig(ox + run.x * k - 30, '#d8d0c0', run.x / 9 + 2);
+    for (let i = 0; i < 4; i++) fig(ox + run.men * k - i * 14, '#050608', t * 9 + i);
+  }
+  // 船で港を出る（上から）
+  const boat = {y:0, v:0, need:520};
+  function boatUpdate(dt){ if (!sh.classList.contains('on')) return; boat.v = key.go ? Math.min(220, boat.v + 120 * dt) : Math.max(0, boat.v - 60 * dt); boat.y += boat.v * dt;
+    if (boat.v > 40) for (let i = 0; i < 2; i++) sparks.push({x:rnd(-8, 8), y:boat.y - 26, vx:rnd(-40, 40), vy:-boat.v * .2, t:0, w:1}); }
+  function drawBoat(){
+    const k = vh / 700, bx = W / 2, by = vh * .7;
+    ctx.fillStyle = '#2f5566'; ctx.fillRect(0, 0, W, vh);
+    ctx.save(); ctx.translate(bx, by); ctx.scale(k, k);
+    ctx.translate(0, boat.y);
+    // 堤防と、立っている黒ずくめの男たち
+    ctx.fillStyle = '#8a8478'; ctx.fillRect(-260, -60, 200, 26); ctx.fillRect(60, -60, 200, 26); ctx.fillRect(-260, -60, 26, 300);
+    for (let i = 0; i < 4; i++){ ctx.fillStyle = '#050608'; ctx.beginPath(); ctx.arc(-150 + i * 22, -47, 7, 0, 7); ctx.fill(); }
+    ctx.restore();
+    // 白波
+    ctx.save(); ctx.translate(bx, by); ctx.scale(k, k);
+    sparks.forEach(p => { ctx.fillStyle = `rgba(235,245,250,${(1 - p.t) * .8})`; ctx.beginPath(); ctx.arc(p.x, p.y - boat.y + 30 + p.t * 40, 3, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#efe8da'; ctx.beginPath(); ctx.moveTo(0, -40); ctx.quadraticCurveTo(16, -18, 14, 26); ctx.lineTo(-14, 26); ctx.quadraticCurveTo(-16, -18, 0, -40); ctx.fill();
+    ctx.fillStyle = '#c9c4b8'; ctx.fillRect(-8, -4, 16, 18);
+    ctx.restore();
+  }
+  // 腰越からの帰り。相模湾を真っ赤に染める夕焼け（横から）
+  function drawYuyake(){
+    const hz = vh * .52, g = ctx.createLinearGradient(0, 0, 0, hz);
+    g.addColorStop(0, '#3a2a4a'); g.addColorStop(.55, '#d8603a'); g.addColorStop(1, '#f4b25a'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz);
+    ctx.fillStyle = '#ffdf9a'; ctx.beginPath(); ctx.arc(W * .6, hz - 6, 26, Math.PI, 0); ctx.fill();
+    const sg = ctx.createLinearGradient(0, hz, 0, vh); sg.addColorStop(0, '#c84a2a'); sg.addColorStop(1, '#3a1a1a'); ctx.fillStyle = sg; ctx.fillRect(0, hz, W, vh - hz);
+    for (let i = 0; i < 16; i++){ ctx.fillStyle = `rgba(255,220,150,${.4 - i * .02})`; ctx.fillRect(W * .6 - 40 + Math.sin(t * 2 + i) * 20, hz + 6 + i * 10, 80 - i * 4, 2); }
+    // 漁船と、並んで跳ねる小魚
+    const bx = W * .35, by = hz + 40 + Math.sin(t * 1.5) * 2;
+    ctx.fillStyle = '#1a0e0c'; ctx.beginPath(); ctx.moveTo(bx - 50, by); ctx.lineTo(bx + 56, by); ctx.lineTo(bx + 44, by + 14); ctx.lineTo(bx - 42, by + 14); ctx.fill(); ctx.fillRect(bx - 12, by - 22, 24, 22); ctx.fillRect(bx + 4, by - 40, 3, 18);
+    for (let i = 0; i < 6; i++){ const ph = (t * 1.6 + i * .9) % 3; if (ph < 1){ const fx = bx + 70 + i * 22, fy = by + 6 - Math.sin(ph * Math.PI) * 18; ctx.fillStyle = '#1a0e0c'; ctx.beginPath(); ctx.ellipse(fx, fy, 5, 2, -.5 + ph, 0, 7); ctx.fill(); } }
+  }
+  function draw(){
+    vh = H - (sh.classList.contains('on') ? sh.offsetHeight : $('#box').offsetHeight);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, vh); ctx.clip();
+    if (mode === 'run') drawRun(); else if (mode === 'boat') drawBoat(); else if (mode === 'yuyake') drawYuyake(); else drawWorld();
+    if (flash > 0){ ctx.fillStyle = `rgba(240,242,244,${flash * .8})`; ctx.fillRect(0, 0, W, vh); }
+    // 字幕（本文）
+    if (capNow){ ctx.font = '15px "Shippori Mincho", serif'; const lines = []; let cur = '';
+      for (const ch of capNow){ if (ctx.measureText(cur + ch).width > W - 44){ lines.push(cur); cur = ch; } else cur += ch; } lines.push(cur);
+      const a = Math.min(1, capT * 2, 1);
+      ctx.fillStyle = `rgba(14,13,12,${.72 * a})`; ctx.fillRect(0, 10, W, lines.length * 24 + 16);
+      ctx.fillStyle = `rgba(239,232,218,${a})`; ctx.textAlign = 'left'; lines.forEach((l, i) => ctx.fillText(l, 22, 32 + i * 24)); }
+    ctx.restore(); ctx.fillStyle = '#0e0d0c'; ctx.fillRect(0, vh, W, H - vh);
+  }
+  const loop = now => { const dt = Math.min(.05, (now - last) / 1000 || 0); last = now; update(dt); draw(); raf = requestAnimationFrame(loop); };
+  const wait = test => new Promise(res => { const iv = setInterval(() => { if (test()){ clearInterval(iv); res(); } }, 100); });
+  if (new URLSearchParams(location.search).has('dbg')) window.__chase = {car, sedan, key, SEG, get pS(){ return pS; }, get zone(){ return zone; }, get mode(){ return mode; }, run, boat, total};   // 確認用
+
+  return {
+    open(){ $('#pic').classList.add('out'); $('#bg').style.backgroundImage = 'none'; $('#tint').className = ''; $('#glow').classList.remove('on');
+      el.classList.add('on'); fit(); addEventListener('resize', fit); addEventListener('keydown', kd); addEventListener('keyup', ku); last = performance.now(); raf = requestAnimationFrame(loop); },
+    close(){ cancelAnimationFrame(raf); removeEventListener('resize', fit); removeEventListener('keydown', kd); removeEventListener('keyup', ku); el.classList.remove('on'); sheet(false); },
+    // カーチェイス。埋立て地の行き止まりで終わる。{bumps, catches} を返す
+    async drive(){
+      mode = 'drive'; zone = ''; ct.textContent = 'ベントレーで逃げる'; chh.textContent = '';
+      cl.hidden = cr.hidden = false; cgo.textContent = 'アクセル'; sheet(true);
+      await wait(() => mode === 'arrive' && car.v < 5);
+      await new Promise(r => setTimeout(r, 900)); sheet(false); caps = []; capNow = ''; chh.style.color = '';
+      return {bumps, catches};
+    },
+    // 走って白石漁港の船へ。連打で走る
+    async run(){
+      mode = 'run'; run.x = 0; run.men = -130; ct.textContent = '白石漁港の船へ走る'; chh.textContent = '「走る」を何度も押す。黒ずくめの男たちが追ってくる。';
+      cl.hidden = cr.hidden = true; cgo.textContent = '走る'; sheet(true);
+      let caughtN = 0;
+      runCaught = () => { caughtN++; flash = 1; run.men = run.x - 140; chh.textContent = '腕をつかまれかけた！ ふりほどいて、もう一度。'; };
+      cgo.onpress = () => { run.x += 15; };
+      await wait(() => run.x >= run.need);
+      cgo.onpress = null; sheet(false); return caughtN;
+    },
+    // 船で港を出る。押しているあいだフルスロットル
+    async boat(){
+      mode = 'boat'; boat.y = 0; boat.v = 0; sparks = []; ct.textContent = '港を出る'; chh.textContent = '押しているあいだ、フルスロットル。';
+      cl.hidden = cr.hidden = true; cgo.textContent = 'フルスロットル'; sheet(true);
+      await wait(() => boat.y >= boat.need);
+      sheet(false);
+    },
+    show(m){ mode = m; },
+    reset(){ const p = at(10); car.x = p.x; car.y = p.y; car.a = 0; car.v = 0; sedan.s = -170; sedan.go = false; pSeg = 0; pS = 0; bumps = 0; catches = 0; caps = []; capNow = ''; PEO.forEach(p => p.dx = 0); },
+  };
+}
+
 const PARTS = {
  koi: async () => {
   await scene('koi');
@@ -2007,6 +2338,59 @@ const PARTS = {
   await N('「今日は帰ろう……」と誰かが言った。', true);
   clear(); u.close();
  },
+ // ベントレーで逃げる（本文 p49〜51。御代川会長と大谷さんを乗せて、黒いセダンに追われる）
+ chase: async () => {
+  const c = makeChase();
+  const banner = async (b, s) => { clear(); $('#banner b').textContent = b; $('#banner small').textContent = s; $('#banner').classList.add('on'); await sleep(1700); $('#banner').classList.remove('on'); await sleep(500); };
+  await scene('asa', false); $('#clock').textContent = '午後'; $('#place').textContent = '黄色いテントの喫茶店';
+  await N('御代川会長の運転手としてベントレーで鎌倉山へ帰る途中、会長に言われて三崎の喫茶店に寄った。');
+  await say('会長', '「こりゃあ映画のセットみたいだな、平成を通り越して昭和だな」', true);
+  await N('会長にコーヒーを淹れて飲んでいただいた。', true);
+  await N('表に立っていた大谷さんが会長に声をかけた。', true);
+  await say('大谷', '「会長、怪しげなのがいますので、そろそろ行きましょう」', true);
+  await say('会長', '「怪しげな？　……そうか、では行くとするかな」', true);
+  await N('店の戸締まりをして急いでベントレーに乗り込むと商店街の入り口付近に停まっていた黒いセダンも動き始めた。', true);
+  await say('大谷', '「あの車、六本木からずっと後ろを走っていました」', true);
+  c.open(); c.reset(); $('#place').textContent = '三崎・商店街';
+  await banner('カーチェイス', '三崎・商店街から');
+  clear();
+  const r = await c.drive();
+  if (r.catches === 0 && r.bumps <= 2) await N('ベントレーは、ほとんど傷もなく埋立て地まで来た。');
+  await N('「まずいな、行き止まりだ」', true);
+  await N('「会長、降りましょう」と僕は言った。', true);
+  await N('ベントレーを埋立て地に乗り捨てて走った。', true);
+  c.show('run'); $('#place').textContent = '埋立て地';
+  await N('埋立て地のそばの白石漁港に顔見知りの船頭がいた。', true);
+  await N('少々の嵐の日でも漁に出る漁師だった。', true);
+  await c.run(); $('#place').textContent = '白石漁港';
+  await say('僕', '「船長、船を出してください！」', true);
+  await say('船長', '「青ちゃん、何事よ？」', true);
+  await say('僕', '「いいから早く船を出して！」', true);
+  await N('会長と大谷さんを船室に潜り込ませた。', true);
+  c.show('boat'); await c.boat();
+  await N('漁船は白波をあげてフルスロットルで港を離れた。', true);
+  await N('追って来た黒いセダンの男たちは堤防に立っていた。', true);
+  await say('船長', '「青ちゃん、この方々は何者なのよ？」', true);
+  await say('僕', '「いろいろお世話になっているんです…………」', true);
+  await N('大谷さんはスマホでメールをしていたけれど、船酔いをしてぐったりとしていた。', true);
+  await N('漁船は相模湾を西に向かって走った。', true);
+  $('#place').textContent = '腰越漁港'; $('#clock').textContent = '夕方';
+  await N('腰越漁港には警察車両が数台集結していた。', true);
+  await N('大谷さんが連絡を取ったのだろう。', true);
+  await N('御代川会長がそばに来てささやいた。', true);
+  await say('会長', '「青木くん、ありがとう、危うく蜂の巣にされるか海に沈められるか…………、君は命の恩人だよ」', true);
+  await say('僕', '「会長すみません、なんとか逃げ切れて良かったです」', true);
+  await say('会長', '「結局、人生は勝つか逃げるかだからなあ」', true);
+  await N('コメディアンの萩本欽一がそんなことを言ってたなと思い出した。', true);
+  await N('確かに自分自身も逃げて三崎へ来た。', true);
+  await N('腰越漁港に漁船をつけると、会長と大谷さんは警察車両に乗り込みパトカーに先導されて鎌倉山に向かった。', true);
+  c.show('yuyake'); $('#place').textContent = '相模湾';
+  await N('腰越漁港から三崎に向けて船は出港した。', true);
+  await N('相模湾を真っ赤に染めて世界で一番美しい夕焼けが広がっていた。', true);
+  await N('小魚の群れが漁船の周りを並走していた。', true);
+  await say('僕', '「船長今日はありがとうございました、それにしても夕日がきれいですね」', true);
+  clear(); c.close();
+ },
 };
 const ORDER = ['koi', 'asa', 'hiru', 'yu', 'yoru'];   // 「一日をとおして遊ぶ」の順（追浜は別の日）
 async function day(from = 0){
@@ -2021,7 +2405,7 @@ const PLACES = [
    games:[['yu', 'コーヒーを淹れる'], ['yoru', '夜の路地で、おにゃんどん']]},
   {key:'kamakurayama', xy:[71, 85], icon:'koi', line:1, st:[76, 150], sl:'below', name:'鎌倉山', text:'御代川邸の池。一匹一五〇万円の鯉たちに、まんべんなく。', games:[['koi', '鯉の餌やり']]},
   {key:'oppama', xy:[267, 96], icon:'car', line:2, st:[316, 150], sl:'right', name:'追浜', text:'海っぺりの車両集積所で、新車を指定の場所へ。バックは禁止。', games:[['oppama', '車を指定の場所へ']]},
-  {key:'jogashima', xy:[304, 466], icon:'ika', lb:'right', line:5, st:[300, 452], sl:'right', name:'三崎港・城ヶ島', short:'城ヶ島', text:'真夜中のイカ釣り。満月の港の足もとと、城ヶ島の海の底に、なにかがいる。', games:[['ika', '夜のイカ釣り']]},
+  {key:'jogashima', xy:[304, 466], icon:'ika', lb:'right', line:5, st:[300, 452], sl:'right', name:'三崎港・城ヶ島', short:'城ヶ島', text:'真夜中のイカ釣り。満月の港の足もとと、城ヶ島の海の底に、なにかがいる。昼は、黒いセダンに追われてベントレーで大橋を渡る。', games:[['ika', '夜のイカ釣り'], ['chase', 'ベントレーで逃げる']]},
   {key:'sakin', xy:[248, 304], icon:'kin', short:'川', line:3, st:[316, 284], sl:'left', name:'三浦半島の川', text:'大楠山の沢で、義男と砂金採り。掘って、ふるって、皿を回す。', games:[['sakin', '砂金採り']]},
 ];
 const played = new Set((() => { try { return JSON.parse(sessionStorage.getItem('played') || '[]'); } catch (e) { return []; } })());
@@ -2131,7 +2515,7 @@ $('#tomap').onclick = () => { location.href = location.pathname + location.searc
 showMap();
 // ?ba=koi / asa / hiru / yu / yoru で地図をとばし、その場面から通しで始める（確認用）。?ba=oppama は追浜だけ
 const baKey = new URLSearchParams(location.search).get('ba'), ba = ORDER.indexOf(baKey);
-if (['oppama', 'sakin', 'ika'].includes(baKey)) playOne(baKey);
+if (['oppama', 'sakin', 'ika', 'chase'].includes(baKey)) playOne(baKey);
 else if (ba >= 0){ $('#start').classList.add('hide'); $('#tomap').hidden = false; day(ba); }
 })();
 </script>
